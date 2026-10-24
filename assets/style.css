@@ -376,3 +376,10 @@ details.abstract p { margin: 6px 0 0; max-width: 68ch; }
 .blog-who .badge { margin-left: 6px; background: var(--accent-soft); color: var(--accent); }
 .blog p:last-child { margin: 0; }
 .blog.star { border-left: 3px solid var(--accent); padding-left: 14px; }
+
+/* ---------- Spotted on the web ---------- */
+.webfind h2 { margin-bottom: 2px; }
+.weblist { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 10px; }
+.weblist a { font-weight: 600; text-decoration: none; }
+.weblist a:hover { text-decoration: underline; }
+.weblist span { display: block; font-size: .85rem; color: var(--muted); }

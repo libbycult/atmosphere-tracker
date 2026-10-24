@@ -494,10 +494,14 @@ function renderJobs() {
 
 async function loadJobs() {
   $("#job-status").textContent = "Loading jobs…";
-  const [auto, manual] = await Promise.all([fetchJson("data/jobs.json"), fetchJson("data/jobs-manual.json")]);
+  const [auto, manual, web] = await Promise.all([fetchJson("data/jobs.json"), fetchJson("data/jobs-manual.json"), webFinds()]);
   jobsUpdated = auto?.updated || null;
+  const webJobs = (web?.items || []).filter((i) => i.tag === "jobs").map((i) => ({
+    title: i.title, employer: i.employer || i.domain, location: "", posted: i.published, url: i.url,
+    source: `the web (${i.domain})`, sector: i.sector || "industry", summary: i.summary,
+  }));
   const seen = new Set();
-  jobs = [...(manual?.jobs || []), ...(auto?.jobs || [])].filter((j) => {
+  jobs = [...(manual?.jobs || []), ...(auto?.jobs || []), ...webJobs].filter((j) => {
     if (!j.url || seen.has(j.url)) return false;
     seen.add(j.url);
     return true;
@@ -515,6 +519,19 @@ function initJobs() {
   });
   $("#job-search").addEventListener("submit", (e) => e.preventDefault());
   $("#jq").addEventListener("input", () => { state.jobQuery = $("#jq").value.trim(); renderJobs(); });
+}
+
+/* ---------- Web finds (Firehose live crawl, collected by the Action) ---------- */
+let webPromise = null;
+const webFinds = () => (webPromise ||= fetchJson("data/web.json"));
+async function loadWebResearch() {
+  const items = ((await webFinds())?.items || []).filter((i) => i.tag === "research" || i.tag === "preprints").slice(0, 8);
+  if (!items.length) return;
+  $("#web-research-list").innerHTML = items.map((i) => `<li>
+      <a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.title)}</a>
+      <span>${i.tag === "preprints" ? "Preprint · " : ""}${esc(i.domain)}${i.published ? ` · ${esc(daysAgo(i.published))}` : ""}</span>
+    </li>`).join("");
+  $("#web-research").hidden = false;
 }
 
 /* ---------- Funding ---------- */
@@ -1321,5 +1338,6 @@ async function loadCo2() {
 
 loadCo2();
 initPapers();
+loadWebResearch();
 initJobs();
 showTab();

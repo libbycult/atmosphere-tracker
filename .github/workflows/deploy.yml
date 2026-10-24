@@ -27,6 +27,11 @@ jobs:
       - name: Collect job listings
         run: python scripts/fetch_jobs.py
         continue-on-error: true
+      - name: Collect job postings and research news from Firehose
+        run: python scripts/fetch_firehose.py
+        continue-on-error: true
+        env:
+          FIREHOSE_TAP_TOKEN: ${{ secrets.FIREHOSE_TAP_TOKEN }}
       - name: Collect CO2, funding calls and active storms
         run: python scripts/fetch_extras.py
         continue-on-error: true

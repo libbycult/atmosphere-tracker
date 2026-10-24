@@ -366,6 +366,11 @@ def summarize():
         elif isinstance(obj, dict) and isinstance(obj.get("years"), dict):
             ys = sorted(obj["years"])
             out[f.name] = {"years": [ys[0], ys[-1]] if ys else [], "climatology": bool(obj.get("climatology"))}
+        elif isinstance(obj, dict) and isinstance(obj.get("items"), list):
+            tags = {}
+            for i in obj["items"]:
+                tags[i.get("tag")] = tags.get(i.get("tag"), 0) + 1
+            out[f.name] = tags
         else:
             out[f.name] = sorted(obj)[:12] if isinstance(obj, dict) else len(obj)
     return out
