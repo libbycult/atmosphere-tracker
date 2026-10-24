@@ -72,6 +72,22 @@
       <label>Journal
         <select id="journal"></select>
       </label>
+      <label>Published
+        <select id="when">
+          <option value="any">Any time</option>
+          <option value="7">Past week</option>
+          <option value="30">Past month</option>
+          <option value="365">Past year</option>
+          <option value="1825">Past 5 years</option>
+          <option value="custom">Choose dates…</option>
+        </select>
+      </label>
+      <label id="from-wrap" hidden>From
+        <input type="date" id="date-from">
+      </label>
+      <label id="to-wrap" hidden>To
+        <input type="date" id="date-to">
+      </label>
       <label>Type
         <select id="ptype">
           <option value="article|preprint|review">Articles and preprints</option>

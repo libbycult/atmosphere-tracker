@@ -149,7 +149,7 @@ main { padding-block: 22px 8px; }
 
 .filters { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: flex-end; font-size: .85rem; color: var(--muted); }
 .filters label { display: flex; flex-direction: column; gap: 4px; font-weight: 500; }
-.filters select {
+.filters select, .filters input[type="date"] {
   font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line);
   border-radius: 8px; padding: 6px 8px; max-width: 100%;
 }

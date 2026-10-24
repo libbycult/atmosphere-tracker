@@ -67,7 +67,7 @@ function save(key, value) {
 }
 
 const state = Object.assign(
-  { topic: "all", journal: "", ptype: "article|preprint|review", sort: "publication_date:desc", oaOnly: false, query: "" },
+  { topic: "all", when: "any", dateFrom: "", dateTo: "", journal: "", ptype: "article|preprint|review", sort: "publication_date:desc", oaOnly: false, query: "" },
   load("atmo.papers", {}),
   { page: 1, mode: "latest", sector: "all", jobQuery: "" }
 );
@@ -101,8 +101,15 @@ function buildUrl() {
   const filters = [];
   filters.push(state.journal ? `primary_location.source.issn:${state.journal}` : `primary_topic.subfield.id:${ATMOS_SUBFIELD}`);
   filters.push(`type:${state.ptype}`);
-  filters.push(`to_publication_date:${today()}`);
-  if (state.mode === "trending") filters.push(`from_publication_date:${isoDate(new Date(Date.now() - 60 * 86400000))}`);
+  const daysBack = (n) => isoDate(new Date(Date.now() - n * 86400000));
+  let from = "", to = today();
+  if (state.mode === "trending") from = daysBack(60);
+  else if (state.when === "custom") {
+    from = state.dateFrom;
+    if (state.dateTo && state.dateTo < to) to = state.dateTo;
+  } else if (state.when !== "any") from = daysBack(Number(state.when));
+  filters.push(`to_publication_date:${to}`);
+  if (from) filters.push(`from_publication_date:${from}`);
   if (state.oaOnly) filters.push("is_oa:true");
   const topic = TOPICS.find((t) => t.id === state.topic);
   if (topic?.terms) filters.push(`title_and_abstract.search:${topic.terms.join("|")}`);
@@ -200,6 +207,8 @@ function setMode(mode) {
   $("#paper-filters").hidden = !browsing;
   $("#paper-search").hidden = !browsing;
   $("#sort-wrap").hidden = mode === "trending";
+  $("#when").closest("label").hidden = mode === "trending";
+  $("#from-wrap").hidden = $("#to-wrap").hidden = mode === "trending" || state.when !== "custom";
   if (browsing) loadPapers(); else { paperRequest++; renderSaved(); }
 }
 
@@ -212,7 +221,7 @@ async function loadPapers({ append = false } = {}) {
   status.classList.remove("error");
   status.textContent = append ? "Loading more…" : "Loading papers…";
   more.hidden = true;
-  save("atmo.papers", { topic: state.topic, journal: state.journal, ptype: state.ptype, sort: state.sort, oaOnly: state.oaOnly, query: state.query });
+  save("atmo.papers", { topic: state.topic, when: state.when, dateFrom: state.dateFrom, dateTo: state.dateTo, journal: state.journal, ptype: state.ptype, sort: state.sort, oaOnly: state.oaOnly, query: state.query });
 
   try {
     const res = await fetch(buildUrl());
@@ -250,6 +259,16 @@ function initPapers() {
   $("#journal").innerHTML = `<option value="">All atmospheric science</option>` +
     JOURNALS.map(([name, issn]) => `<option value="${issn}">${esc(name)}</option>`).join("");
   $("#journal").value = state.journal;
+  $("#when").value = state.when;
+  $("#date-from").value = state.dateFrom;
+  $("#date-to").value = state.dateTo;
+  $("#date-from").max = $("#date-to").max = today();
+  const showCustom = () => { $("#from-wrap").hidden = $("#to-wrap").hidden = state.when !== "custom" || state.mode === "trending"; };
+  showCustom();
+  $("#when").addEventListener("change", () => { state.when = $("#when").value; showCustom(); loadPapers(); });
+  for (const [sel, key] of [["#date-from", "dateFrom"], ["#date-to", "dateTo"]]) {
+    $(sel).addEventListener("change", () => { state[key] = $(sel).value; loadPapers(); });
+  }
   $("#ptype").value = state.ptype;
   $("#sort").value = state.sort;
   $("#oa-only").checked = state.oaOnly;
