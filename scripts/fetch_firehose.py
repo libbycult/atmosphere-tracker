@@ -24,6 +24,7 @@ OUT = Path(__file__).resolve().parent.parent / "data" / "web.json"
 KEEP_DAYS = 30
 MAX_ITEMS = 400
 STREAM_SECONDS = 60
+RULE_LIST = []  # the tap's rules as found at the start of the run, written out for checking
 
 # Rules are kept in sync with this list, matched by tag. Keep them narrow: every match costs credit.
 RULES = {
@@ -83,6 +84,8 @@ def sync_rules(token):
         ids[str(rule["id"])] = tag
     for r in existing or []:  # rules added by hand in the dashboard keep their own tag
         ids.setdefault(str(r["id"]), r.get("tag") or "other")
+    global RULE_LIST
+    RULE_LIST = [{"id": str(r.get("id")), "tag": r.get("tag"), "value": (r.get("value") or "")[:160]} for r in existing or []]
     return ids
 
 
@@ -172,7 +175,7 @@ def main():
         seen.add(item["url"])
         merged.append(item)
     OUT.parent.mkdir(exist_ok=True)
-    OUT.write_text(json.dumps({"updated": datetime.now(timezone.utc).isoformat(), "items": merged[:MAX_ITEMS]},
+    OUT.write_text(json.dumps({"updated": datetime.now(timezone.utc).isoformat(), "rules": RULE_LIST, "items": merged[:MAX_ITEMS]},
                               separators=(",", ":"), ensure_ascii=False))
     print(f"Wrote {len(merged[:MAX_ITEMS])} web items")
     return 0
