@@ -3,36 +3,27 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>AtmoScholar</title>
+<title>Atmosphere Tracker</title>
 <meta name="description" content="New atmospheric science papers, jobs, funding, conferences and conversation in one place.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Literata:opsz,wght@7..72,500;7..72,600&family=JetBrains+Mono:wght@400;500&family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=Literata:ital,opsz,wght@0,7..72,500;0,7..72,600;1,7..72,400&family=IBM+Plex+Mono:wght@400;500&family=Caveat:wght@700&family=Archivo:wdth,wght@62..125,500;62..125,700;62..125,800&display=swap">
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
-<header class="sky" id="sky">
-  <div class="stars" aria-hidden="true"></div>
-  <div class="cloud c1" aria-hidden="true"></div>
-  <div class="cloud c2" aria-hidden="true"></div>
-  <div class="cloud c3" aria-hidden="true"></div>
-  <div class="wrap sky-inner">
-    <div class="sky-top">
-      <a class="brand" href="#papers" aria-label="AtmoScholar home">
-        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
-          <path d="M2 22 Q9 14 16 22 T30 22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
-          <path d="M2 15 Q9 7 16 15 T30 15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".6"/>
-          <path d="M2 8 Q9 0 16 8 T30 8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".3"/>
-        </svg>
-        <span>AtmoScholar</span>
-      </a>
-      <a class="co2" id="co2" href="https://gml.noaa.gov/ccgg/trends/" target="_blank" rel="noopener" hidden>
-        <span class="co2-label">CO₂ at Mauna Loa</span>
-        <span class="co2-value" id="co2-value"></span>
-        <span class="co2-delta" id="co2-delta"></span>
-      </a>
+<header class="drum" id="drum">
+  <div class="wrap drum-inner">
+    <div class="drum-top">
+      <a class="brand" href="#papers">Atmosphere Tracker</a>
+      <dl class="readout">
+        <div><dt>Time</dt><dd id="zulu">--:-- Z</dd></div>
+        <div id="co2" hidden><dt><a href="https://gml.noaa.gov/ccgg/trends/" target="_blank" rel="noopener">CO₂ Mauna Loa</a></dt><dd><span id="co2-value"></span> <small id="co2-delta"></small></dd></div>
+      </dl>
     </div>
-    <p class="tagline" id="tagline">Papers, jobs and news from the whole atmosphere, surface to thermosphere.</p>
+    <svg class="trace" id="trace" viewBox="0 0 1000 90" preserveAspectRatio="none" aria-hidden="true">
+      <g class="ticks" id="trace-ticks"></g>
+      <path id="trace-line" d="" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+    </svg>
   </div>
 </header>
 
@@ -43,6 +34,7 @@
     <a class="tab" role="tab" id="tab-funding" href="#funding" aria-controls="view-funding">Funding</a>
     <a class="tab" role="tab" id="tab-events" href="#events" aria-controls="view-events">Conferences</a>
     <a class="tab" role="tab" id="tab-social" href="#social" aria-controls="view-social">Social</a>
+    <a class="tab" role="tab" id="tab-legends" href="#legends" aria-controls="view-legends">Legends</a>
   </div>
 </nav>
 
@@ -164,6 +156,11 @@
       <h2>Accounts worth following</h2>
       <ul class="linkgrid" id="follow-list"></ul>
     </aside>
+  </section>
+  <!-- LEGENDS -->
+  <section id="view-legends" class="view" role="tabpanel" aria-labelledby="tab-legends" hidden>
+    <p class="intro">The people who taught us how the sky works. Quotes are sourced where we can; "attributed" means it's widely credited to them but the original is hard to pin down.</p>
+    <ol class="legends" id="legend-list"></ol>
   </section>
 </main>
 

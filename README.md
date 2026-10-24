@@ -1,4 +1,4 @@
-# AtmoScholar
+# Atmosphere Tracker
 
 A tracker for atmospheric science: new papers, jobs, funding calls, conferences and social media searches.
 

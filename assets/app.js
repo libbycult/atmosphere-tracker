@@ -1,4 +1,4 @@
-// AtmoScholar: papers come live from the OpenAlex API. Jobs, funding calls and the CO2 reading
+// Atmosphere Tracker: papers come live from the OpenAlex API. Jobs, funding calls and the CO2 reading
 // come from files in data/ that a GitHub Action rebuilds daily (see scripts/).
 
 const OPENALEX = "https://api.openalex.org/works";
@@ -74,7 +74,7 @@ const state = Object.assign(
 let saved = load("atmo.saved", {}); // OpenAlex id -> work, the viewer's reading list
 
 /* ---------- Tabs ---------- */
-const TABS = ["papers", "jobs", "funding", "events", "social"];
+const TABS = ["papers", "jobs", "funding", "events", "social", "legends"];
 const loaded = {};
 function showTab() {
   const hash = location.hash.slice(1);
@@ -85,7 +85,7 @@ function showTab() {
   }
   if (!loaded[tab]) {
     loaded[tab] = true;
-    ({ jobs: loadJobs, funding: loadGrants, events: renderEvents, social: renderSocial })[tab]?.();
+    ({ jobs: loadJobs, funding: loadGrants, events: renderEvents, social: renderSocial, legends: renderLegends })[tab]?.();
   }
   updateAltimeter();
 }
@@ -493,24 +493,117 @@ function renderSocial() {
     </li>`).join("");
 }
 
-/* ---------- Sky, CO2 and altimeter ---------- */
-const SKIES = [
-  // [from hour, top, bottom, ink, night?, tagline]
-  [0, "#0b1433", "#26315e", "#ffffff", true, "Night shift: the boundary layer is stable and the papers keep coming."],
-  [5, "#3b5a99", "#f2a97c", "#ffffff", false, "Dawn: the inversion is lifting. Here's what's new."],
-  [8, "#2f86cc", "#a8d8f5", "#ffffff", false, "Clear skies and fresh science, surface to thermosphere."],
-  [17, "#3c3f8f", "#f08a5d", "#ffffff", false, "Golden hour: Rayleigh scattering at its finest."],
-  [20, "#111a3d", "#3a3f78", "#ffffff", true, "Night shift: the boundary layer is stable and the papers keep coming."],
+/* ---------- Legends ---------- */
+const LEGENDS = [
+  {
+    name: "Lewis Fry Richardson", years: "1881–1953",
+    known: "First numerical weather forecast; the Richardson number",
+    quote: "Big whirls have little whirls that feed on their velocity, and little whirls have lesser whirls and so on to viscosity.",
+    source: "Weather Prediction by Numerical Process, 1922",
+    fact: "He computed a six-hour forecast by hand while serving in a WWI ambulance unit. It took weeks and predicted a pressure jump of 145 hPa. The method was right; the starting data weren't.",
+  },
+  {
+    name: "Edward Lorenz", years: "1917–2008",
+    known: "Chaos theory and the limits of predictability",
+    quote: "Does the flap of a butterfly's wings in Brazil set off a tornado in Texas?",
+    source: "Title of his 1972 AAAS talk (the title was suggested by the session organizer, Philip Merilees)",
+    fact: "He found chaos in 1961 by restarting a simulation from a printout rounded to three decimals instead of six. The new run wandered off into a completely different forecast.",
+  },
+  {
+    name: "F. Sherwood Rowland", years: "1927–2012",
+    known: "CFCs and ozone depletion; Nobel Prize in Chemistry, 1995",
+    quote: "What's the use of having developed a science well enough to make predictions if, in the end, all we're willing to do is stand around and wait for them to come true?",
+    source: "Attributed, widely quoted",
+    fact: "He and Mario Molina published the CFC–ozone warning in 1974, more than a decade before the Antarctic ozone hole was reported in 1985.",
+  },
+  {
+    name: "Joanne Simpson", years: "1923–2010",
+    known: "Hot towers and tropical convection; TRMM",
+    fact: "In 1949 she became the first woman in the US to earn a PhD in meteorology. Decades later she was project scientist for TRMM, the first satellite built to measure tropical rainfall from space.",
+  },
+  {
+    name: "Tetsuya “Ted” Fujita", years: "1920–1998",
+    known: "The Fujita scale; discovered downbursts and microbursts",
+    fact: "Known as “Mr. Tornado.” His microburst work after the 1975 Eastern Air Lines Flight 66 crash led to the wind-shear detection systems now used at airports.",
+  },
+  {
+    name: "Jule Charney", years: "1917–1981",
+    known: "Quasi-geostrophic theory; the first computer forecast",
+    fact: "His team's 1950 ENIAC forecast took about 24 hours to compute a 24-hour forecast, so it barely kept pace with the weather. His 1979 Charney Report put climate sensitivity at 3 °C ± 1.5 °C, a range that has held up remarkably well.",
+  },
+  {
+    name: "Carl-Gustaf Rossby", years: "1898–1957",
+    known: "Rossby waves; the jet stream",
+    fact: "He started the first US university meteorology program at MIT in 1928, and in 1956 he was on the cover of Time magazine. Few dynamicists can say that.",
+  },
+  {
+    name: "Charles David Keeling", years: "1928–2005",
+    known: "The Keeling Curve",
+    fact: "He began measuring CO₂ at Mauna Loa in 1958. The CO₂ number at the top of this page comes from the same mountain.",
+  },
+  {
+    name: "Syukuro Manabe", years: "born 1931",
+    known: "Climate modeling; Nobel Prize in Physics, 2021",
+    fact: "His 1967 paper with Richard Wetherald was voted the most influential climate science paper of all time in a 2015 Carbon Brief poll of climate scientists.",
+  },
+  {
+    name: "Susan Solomon", years: "born 1956",
+    known: "Explained the chemistry of the Antarctic ozone hole",
+    fact: "She led the 1986 National Ozone Expedition to McMurdo Station at age 30. Antarctica now has a Solomon Glacier named after her.",
+  },
+  {
+    name: "Paul Crutzen", years: "1933–2021",
+    known: "Nitrogen oxides and ozone; Nobel Prize in Chemistry, 1995",
+    fact: "He popularized the word “Anthropocene” after blurting it out at a conference in 2000, frustrated that people kept calling the present the Holocene.",
+  },
+  {
+    name: "Not Mark Twain", years: "bonus",
+    known: "Charles Dudley Warner, Hartford Courant, 1897",
+    quote: "Everybody talks about the weather, but nobody does anything about it.",
+    source: "Usually credited to Mark Twain, but it was his friend and co-author Warner",
+    fact: "Meteorologists have since done quite a lot about it. See the Papers tab.",
+  },
 ];
-function paintSky() {
-  const h = new Date().getHours();
-  const sky = [...SKIES].reverse().find(([from]) => h >= from);
-  const root = document.documentElement.style;
-  root.setProperty("--sky-top", sky[1]);
-  root.setProperty("--sky-bottom", sky[2]);
-  root.setProperty("--sky-ink", sky[3]);
-  $("#sky").classList.toggle("night", sky[4]);
-  $("#tagline").textContent = sky[5];
+
+function renderLegends() {
+  $("#legend-list").innerHTML = LEGENDS.map((l) => `<li class="legend">
+      <div class="legend-head"><h3>${esc(l.name)}</h3><span class="years">${esc(l.years)}</span></div>
+      <p class="known">${esc(l.known)}</p>
+      ${l.quote ? `<blockquote>“${esc(l.quote)}”<cite>${esc(l.source)}</cite></blockquote>` : ""}
+      <p class="fact"><b>Fun fact</b>${esc(l.fact)}</p>
+    </li>`).join("");
+}
+
+/* ---------- Barograph, clock, CO2 and altimeter ---------- */
+// Draw a barograph-style trace across the header. Seeded by the date so it changes daily but not on reload.
+function drawTrace() {
+  const d = new Date();
+  let seed = d.getUTCFullYear() * 400 + d.getUTCMonth() * 32 + d.getUTCDate();
+  const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const waves = [0, 1, 2].map(() => ({ f: 0.5 + rand() * 2.5, p: rand() * Math.PI * 2, a: 6 + rand() * 12 }));
+  const pts = [];
+  for (let x = 0; x <= 1000; x += 8) {
+    let y = 45;
+    for (const w of waves) y += w.a * Math.sin((x / 1000) * Math.PI * 2 * w.f + w.p);
+    y += (rand() - 0.5) * 2.5; // pen jitter
+    pts.push(`${x},${Math.max(6, Math.min(84, y)).toFixed(1)}`);
+  }
+  const line = $("#trace-line");
+  line.setAttribute("d", `M${pts.join(" L")}`);
+  // hour ticks, one per 3 hours over a day
+  $("#trace-ticks").innerHTML = Array.from({ length: 9 }, (_, i) => `<line x1="${i * 125}" y1="0" x2="${i * 125}" y2="90"/>`).join("");
+  if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    const len = line.getTotalLength();
+    line.style.setProperty("--len", len);
+    line.style.strokeDasharray = len;
+    line.style.strokeDashoffset = len;
+    line.classList.add("drawing");
+  }
+}
+
+function tickClock() {
+  const d = new Date();
+  $("#zulu").textContent = `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")} Z`;
 }
 
 async function loadCo2() {
@@ -538,8 +631,9 @@ function updateAltimeter() {
 }
 addEventListener("scroll", updateAltimeter, { passive: true });
 
-paintSky();
-setInterval(paintSky, 10 * 60 * 1000);
+drawTrace();
+tickClock();
+setInterval(tickClock, 30 * 1000);
 loadCo2();
 initPapers();
 initJobs();

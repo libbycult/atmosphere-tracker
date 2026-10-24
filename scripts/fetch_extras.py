@@ -12,7 +12,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 DATA = Path(__file__).resolve().parent.parent / "data"
-USER_AGENT = "AtmoScholar data collector (+https://github.com/libbycult/atmosphere-tracker)"
+USER_AGENT = "Atmosphere Tracker data collector (+https://github.com/libbycult/atmosphere-tracker)"
 
 CO2_URL = "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_daily_mlo.txt"
 GRANTS_URL = "https://api.grants.gov/v1/api/search2"
