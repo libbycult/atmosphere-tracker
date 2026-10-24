@@ -48,7 +48,7 @@
 
     <div class="modes" role="group" aria-label="Paper view">
       <button type="button" class="mode" data-mode="latest">Latest</button>
-      <button type="button" class="mode" data-mode="trending">Trending</button>
+      <button type="button" class="mode" data-mode="trending">Rising fast</button>
       <button type="button" class="mode" data-mode="saved">Reading list <span class="count" id="saved-count">0</span></button>
     </div>
 
@@ -88,7 +88,12 @@
           <option value="relevance_score:desc">Best match</option>
         </select>
       </label>
+      <label>Funded by
+        <select id="funder"></select>
+      </label>
       <label class="check"><input type="checkbox" id="oa-only"> Free to read only</label>
+      <label class="check"><input type="checkbox" id="top-only"> Top 10% in field</label>
+      <label class="check"><input type="checkbox" id="intl-only"> International teams</label>
     </div>
 
     <p class="status" id="paper-status" aria-live="polite"></p>
@@ -189,6 +194,15 @@
   <section id="view-charts" class="view" role="tabpanel" aria-labelledby="tab-charts" hidden>
     <p class="intro">The planet's vital signs, updated from NOAA and NASA every 6 hours. Hover or tap a chart to read values.</p>
     <div class="charts" id="climate-charts"></div>
+    <figure class="chart" id="emerging">
+      <div class="chart-head">
+        <div>
+          <h2 class="chart-title">Emerging topics</h2>
+          <p class="chart-sub">Growth in papers over the last 12 months compared with the 12 months before. Tap a topic to browse its papers.</p>
+        </div>
+      </div>
+      <ol class="emerging" id="emerging-list"></ol>
+    </figure>
     <figure class="chart" id="pubs-chart">
       <div class="chart-head">
         <div>

@@ -287,3 +287,23 @@ details.abstract p { margin: 6px 0 0; max-width: 68ch; }
 .tabs { gap: 18px; }
 .tab { font-size: .92rem; }
 @media (max-width: 560px) { .chart-stat { text-align: left; } .chart-stat span { display: inline; margin-left: 6px; } }
+
+/* ---------- Metrics ---------- */
+.badge.top { background: var(--accent-soft); color: var(--accent); }
+.badge.retracted { background: var(--red); color: #fff; }
+.meta .velocity { color: var(--ink); font-weight: 600; }
+.funders { margin: 0; font-size: .84rem; color: var(--muted); }
+.emerging { list-style: none; margin: 0; padding: 0; }
+.emerging-row {
+  width: 100%; display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(80px, 1fr) 4.5em; grid-template-rows: auto auto; column-gap: 14px;
+  align-items: center; text-align: left; font: inherit; color: var(--ink); background: none; border: 0; border-top: 1px solid var(--line);
+  padding: 10px 0; cursor: pointer;
+}
+.emerging-row:hover .emerging-name { color: var(--accent); text-decoration: underline; }
+.emerging-name { font-weight: 600; font-size: .95rem; min-width: 0; }
+.emerging-bar { height: 10px; background: var(--soft); border-radius: 0 4px 4px 0; overflow: hidden; }
+.emerging-bar span { display: block; height: 100%; border-radius: 0 4px 4px 0; }
+.emerging-bar .up { background: var(--accent); }
+.emerging-bar .down { background: var(--muted); }
+.emerging-val { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.emerging-count { grid-column: 1 / -1; font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }

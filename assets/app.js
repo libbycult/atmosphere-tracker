@@ -49,6 +49,19 @@ const JOURNALS = [
   ["Environmental Research Letters", "1748-9326"],
 ];
 
+// OpenAlex funder ids; several ids are OR-ed where a funder appears under more than one name.
+const FUNDERS = [
+  ["", "Any funder"],
+  ["F4320306076", "NSF (US)"],
+  ["F4320332181", "NOAA (US)"],
+  ["F4320306101", "NASA (US)"],
+  ["F4320306084|F4320332359", "Department of Energy (US)"],
+  ["F4320334678|F4320338335", "European Research Council"],
+  ["F4320334631", "NERC (UK)"],
+  ["F4320320879", "DFG (Germany)"],
+  ["F4320321001", "NSFC (China)"],
+];
+
 const SECTORS = [
   { id: "all", label: "All jobs" },
   { id: "academia", label: "Academia" },
@@ -67,7 +80,7 @@ function save(key, value) {
 }
 
 const state = Object.assign(
-  { topic: "all", when: "any", dateFrom: "", dateTo: "", journal: "", ptype: "article|preprint|review", sort: "publication_date:desc", oaOnly: false, query: "" },
+  { topic: "all", topicId: "", topicLabel: "", funder: "", topOnly: false, intlOnly: false, when: "any", dateFrom: "", dateTo: "", journal: "", ptype: "article|preprint|review", sort: "publication_date:desc", oaOnly: false, query: "" },
   load("atmo.papers", {}),
   { page: 1, mode: "latest", sector: "all", jobQuery: "" }
 );
@@ -102,7 +115,7 @@ function buildUrl() {
   filters.push(`type:${state.ptype}`);
   const daysBack = (n) => isoDate(new Date(Date.now() - n * 86400000));
   let from = "", to = today();
-  if (state.mode === "trending") from = daysBack(60);
+  if (state.mode === "trending") from = daysBack(365);
   else if (state.when === "custom") {
     from = state.dateFrom;
     if (state.dateTo && state.dateTo < to) to = state.dateTo;
@@ -110,6 +123,10 @@ function buildUrl() {
   filters.push(`to_publication_date:${to}`);
   if (from) filters.push(`from_publication_date:${from}`);
   if (state.oaOnly) filters.push("is_oa:true");
+  if (state.topOnly) filters.push("citation_normalized_percentile.is_in_top_10_percent:true");
+  if (state.intlOnly) filters.push("countries_distinct_count:>1");
+  if (state.funder) filters.push(`funders.id:${state.funder}`);
+  if (state.topicId) filters.push(`primary_topic.id:${state.topicId}`);
   const topic = TOPICS.find((t) => t.id === state.topic);
   if (topic?.terms) filters.push(`title_and_abstract.search:${topic.terms.join("|")}`);
 
@@ -119,7 +136,8 @@ function buildUrl() {
   const params = new URLSearchParams({
     filter: filters.join(","),
     sort,
-    per_page: String(PER_PAGE),
+    // Rising fast pulls the 200 most-cited papers of the past year, then ranks them by citations per month
+    per_page: String(state.mode === "trending" ? 200 : PER_PAGE),
     page: String(state.page),
     select: WORK_FIELDS,
   });
@@ -134,7 +152,14 @@ function abstractText(inv) {
   return words.join(" ").replace(/\s+/g, " ").trim();
 }
 
-const WORK_FIELDS = "id,doi,title,publication_date,authorships,primary_location,open_access,abstract_inverted_index,cited_by_count,type,primary_topic,biblio";
+const WORK_FIELDS = "id,doi,title,publication_date,authorships,primary_location,open_access,abstract_inverted_index,cited_by_count,type,primary_topic,biblio,citation_normalized_percentile,countries_distinct_count,institutions_distinct_count,is_retracted,funders";
+
+// Citations per month since publication; the first month counts as one so brand-new papers don't explode.
+function citesPerMonth(w) {
+  if (!w.publication_date || !w.cited_by_count) return 0;
+  const months = Math.max(1, (Date.now() - new Date(w.publication_date + "T12:00:00")) / (30.44 * 86400000));
+  return w.cited_by_count / months;
+}
 
 /* ---------- Citations ---------- */
 function splitName(full) {
@@ -200,6 +225,10 @@ function paperItem(w) {
   const scholar = `https://scholar.google.com/scholar?q=${encodeURIComponent(title)}`;
 
   const badges = [];
+  if (w.is_retracted) badges.push(`<span class="badge retracted">Retracted</span>`);
+  const pct = w.citation_normalized_percentile;
+  if (pct?.is_in_top_1_percent) badges.push(`<span class="badge top" title="Among the 1% most-cited papers in its field and year">Top 1% in field</span>`);
+  else if (pct?.is_in_top_10_percent) badges.push(`<span class="badge top" title="Among the 10% most-cited papers in its field and year">Top 10% in field</span>`);
   badges.push(oaUrl ? `<span class="badge free">Free to read</span>` : `<span class="badge paywall">Subscription</span>`);
   if (w.type === "preprint") badges.push(`<span class="badge">Preprint</span>`);
   if (w.primary_topic?.display_name) badges.push(`<span class="badge">${esc(w.primary_topic.display_name)}</span>`);
@@ -217,7 +246,8 @@ function paperItem(w) {
     </button>
     <h3 class="item-title"><a href="${esc(oaUrl || doiUrl)}" target="_blank" rel="noopener">${esc(title)}</a></h3>
     ${w.authorships?.length ? `<p class="byline">${esc(authorLine(w.authorships))}</p>` : ""}
-    <p class="meta">${source ? `<span class="journal">${esc(source)}</span>` : ""}<span>${esc(formatDate(w.publication_date))}</span><span>${w.cited_by_count || 0} citations</span></p>
+    <p class="meta">${source ? `<span class="journal">${esc(source)}</span>` : ""}<span>${esc(formatDate(w.publication_date))}</span><span>${w.cited_by_count || 0} citations</span>${citesPerMonth(w) >= 0.5 ? `<span class="velocity" title="Citations per month since publication">${citesPerMonth(w).toFixed(1)} per month</span>` : ""}${w.countries_distinct_count > 1 ? `<span title="Countries and institutions on the author list">${w.countries_distinct_count} countries · ${w.institutions_distinct_count} institutions</span>` : ""}</p>
+    ${w.funders?.length ? `<p class="funders">Funded by ${esc(w.funders.slice(0, 4).map((f) => f.display_name).join(", "))}${w.funders.length > 4 ? ` and ${w.funders.length - 4} more` : ""}</p>` : ""}
     <div class="badges">${badges.join("")}</div>
     ${abs ? `<details class="abstract"><summary>Abstract</summary><p>${esc(abs)}</p></details>` : ""}
     <div class="links">${links.join("")}</div>
@@ -266,14 +296,15 @@ async function loadPapers({ append = false } = {}) {
   status.classList.remove("error");
   status.textContent = append ? "Loading more…" : "Loading papers…";
   more.hidden = true;
-  save("atmo.papers", { topic: state.topic, when: state.when, dateFrom: state.dateFrom, dateTo: state.dateTo, journal: state.journal, ptype: state.ptype, sort: state.sort, oaOnly: state.oaOnly, query: state.query });
+  save("atmo.papers", { topicId: state.topicId, topicLabel: state.topicLabel, funder: state.funder, topOnly: state.topOnly, intlOnly: state.intlOnly, topic: state.topic, when: state.when, dateFrom: state.dateFrom, dateTo: state.dateTo, journal: state.journal, ptype: state.ptype, sort: state.sort, oaOnly: state.oaOnly, query: state.query });
 
   try {
     const res = await fetch(buildUrl());
     if (!res.ok) throw new Error(`OpenAlex answered ${res.status}`);
     const data = await res.json();
     if (id !== paperRequest) return; // a newer search replaced this one
-    const results = data.results || [];
+    let results = data.results || [];
+    if (state.mode === "trending") results = results.sort((a, b) => citesPerMonth(b) - citesPerMonth(a)).slice(0, 50);
     results.forEach((w) => onScreen.set(w.id, w));
     list.insertAdjacentHTML("beforeend", results.map(paperItem).join(""));
     const total = data.meta?.count ?? 0;
@@ -281,11 +312,12 @@ async function loadPapers({ append = false } = {}) {
     if (!shown) {
       list.innerHTML = `<li class="empty"><strong>No papers match these filters.</strong>Try another topic, remove the journal filter, or turn off "Free to read only".</li>`;
       status.textContent = "";
+    } else if (state.mode === "trending") {
+      status.textContent = `The ${shown} papers from the past year gaining citations fastest, ranked by citations per month`;
     } else {
-      const what = state.mode === "trending" ? "most-cited papers from the last 60 days" : "papers";
-      status.textContent = `Showing ${shown.toLocaleString()} of ${total.toLocaleString()} ${what}`;
+      status.textContent = `Showing ${shown.toLocaleString()} of ${total.toLocaleString()} papers`;
     }
-    more.hidden = shown >= total;
+    more.hidden = state.mode === "trending" || shown >= total;
   } catch (err) {
     if (id !== paperRequest) return;
     status.classList.add("error");
@@ -324,8 +356,9 @@ async function copyText(btn) {
 }
 
 function renderTopicChips() {
-  $("#topic-chips").innerHTML = TOPICS.map((t) =>
-    `<button type="button" class="chip" data-topic="${t.id}" aria-pressed="${t.id === state.topic}">${esc(t.label)}</button>`
+  const custom = state.topicId ? `<button type="button" class="chip" data-clear-topic aria-pressed="true" title="Remove this topic">${esc(state.topicLabel)} ✕</button>` : "";
+  $("#topic-chips").innerHTML = custom + TOPICS.map((t) =>
+    `<button type="button" class="chip" data-topic="${t.id}" aria-pressed="${!state.topicId && t.id === state.topic}">${esc(t.label)}</button>`
   ).join("");
 }
 
@@ -347,12 +380,18 @@ function initPapers() {
   $("#ptype").value = state.ptype;
   $("#sort").value = state.sort;
   $("#oa-only").checked = state.oaOnly;
+  $("#top-only").checked = state.topOnly;
+  $("#intl-only").checked = state.intlOnly;
+  $("#funder").innerHTML = FUNDERS.map(([id, name]) => `<option value="${id}">${esc(name)}</option>`).join("");
+  $("#funder").value = state.funder;
   $("#q").value = state.query;
 
   $("#topic-chips").addEventListener("click", (e) => {
+    if (e.target.closest("[data-clear-topic]")) { state.topicId = state.topicLabel = ""; renderTopicChips(); loadPapers(); return; }
     const btn = e.target.closest("[data-topic]");
     if (!btn) return;
     state.topic = btn.dataset.topic;
+    state.topicId = state.topicLabel = "";
     renderTopicChips();
     loadPapers();
   });
@@ -368,6 +407,9 @@ function initPapers() {
     $(sel).addEventListener("change", () => { state[key] = $(sel).value; loadPapers(); });
   }
   $("#oa-only").addEventListener("change", () => { state.oaOnly = $("#oa-only").checked; loadPapers(); });
+  $("#top-only").addEventListener("change", () => { state.topOnly = $("#top-only").checked; loadPapers(); });
+  $("#intl-only").addEventListener("change", () => { state.intlOnly = $("#intl-only").checked; loadPapers(); });
+  $("#funder").addEventListener("change", () => { state.funder = $("#funder").value; loadPapers(); });
   $("#paper-more").addEventListener("click", () => { state.page += 1; loadPapers({ append: true }); });
   document.querySelector(".modes").addEventListener("click", (e) => {
     const btn = e.target.closest("[data-mode]");
@@ -919,7 +961,55 @@ function drawPubs() {
   drawChart($("#pubs-body"), pubsData, { title: "Papers per year", unit: "papers", dec: 0, label: yearLabel, bars: true, height: 240 });
 }
 
+// Opens the Papers tab filtered to one OpenAlex topic.
+function browseTopic(id, label) {
+  Object.assign(state, { topicId: id, topicLabel: label, topic: "all" });
+  renderTopicChips();
+  location.hash = "#papers";
+  setMode("latest");
+  scrollTo({ top: 0 });
+}
+
+async function loadEmerging() {
+  const list = $("#emerging-list");
+  list.innerHTML = `<li class="status">Loading…</li>`;
+  const day = (n) => isoDate(new Date(Date.now() - n * 86400000));
+  // Skip the most recent two months, which are still being indexed.
+  const periods = [[day(425), day(60)], [day(790), day(425)]];
+  try {
+    const [recent, before] = await Promise.all(periods.map(async ([from, to]) => {
+      const filter = `primary_topic.subfield.id:${ATMOS_SUBFIELD},type:article|preprint|review,from_publication_date:${from},to_publication_date:${to}`;
+      const res = await fetch(`${OPENALEX}?${new URLSearchParams({ filter, group_by: "primary_topic.id" })}`);
+      if (!res.ok) throw new Error(`OpenAlex answered ${res.status}`);
+      return (await res.json()).group_by || [];
+    }));
+    const prev = new Map(before.map((g) => [g.key, g.count]));
+    const rows = recent
+      .filter((g) => (prev.get(g.key) || 0) >= 100)
+      .map((g) => ({ id: g.key.split("/").pop(), name: g.key_display_name, now: g.count, was: prev.get(g.key), growth: g.count / prev.get(g.key) - 1 }))
+      .sort((a, b) => b.growth - a.growth)
+      .slice(0, 10);
+    if (!rows.length) { list.innerHTML = `<li class="status">Not enough data yet.</li>`; return; }
+    const maxG = Math.max(...rows.map((r) => Math.abs(r.growth)), 0.01);
+    list.innerHTML = rows.map((r) => `<li>
+        <button type="button" class="emerging-row" data-topic-id="${esc(r.id)}" data-topic-name="${esc(r.name)}">
+          <span class="emerging-name">${esc(r.name)}</span>
+          <span class="emerging-bar"><span class="${r.growth >= 0 ? "up" : "down"}" style="width:${Math.max(2, (Math.abs(r.growth) / maxG) * 100)}%"></span></span>
+          <span class="emerging-val">${r.growth >= 0 ? "+" : "−"}${Math.abs(r.growth * 100).toFixed(0)}%</span>
+          <span class="emerging-count">${r.was.toLocaleString()} → ${r.now.toLocaleString()} papers</span>
+        </button>
+      </li>`).join("");
+  } catch (err) {
+    list.innerHTML = `<li class="status error">Couldn't load topics (${esc(err.message)}).</li>`;
+  }
+}
+
 function initCharts() {
+  loadEmerging();
+  $("#emerging-list").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-topic-id]");
+    if (b) browseTopic(b.dataset.topicId, b.dataset.topicName);
+  });
   $("#pubs-topic").innerHTML = TOPICS.map((t) => `<option value="${t.id}">${esc(t.label)}</option>`).join("");
   $("#pubs-topic").addEventListener("change", loadPubs);
   fetchJson("data/climate.json").then((d) => { climateData = d || { series: {} }; renderClimate(); });
