@@ -1,5 +1,5 @@
-"""Fetch the latest Mauna Loa CO2 reading, open federal grant calls and active
-tropical cyclones into data/.
+"""Fetch the latest Mauna Loa CO2 reading, open federal grant calls, active
+tropical cyclones and climate time series into data/.
 
 Runs daily in GitHub Actions next to fetch_jobs.py. Standard library only.
 Each part is independent: if one source fails, its existing file is left alone.
@@ -15,6 +15,14 @@ from pathlib import Path
 DATA = Path(__file__).resolve().parent.parent / "data"
 USER_AGENT = "Atmosphere Tracker data collector (+https://github.com/libbycult/atmosphere-tracker)"
 
+CO2_MONTHLY_URL = "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.txt"
+CH4_URL = "https://gml.noaa.gov/webdata/ccgg/trends/ch4/ch4_mm_gl.txt"
+GISTEMP_URL = "https://data.giss.nasa.gov/gistemp/tabledata_v4/GLB.Ts+dSST.csv"
+ONI_URL = "https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt"
+SEAICE_URLS = [  # NSIDC Sea Ice Index, September (annual minimum) extent; version bumps over time
+    "https://noaadata.apps.nsidc.org/NOAA/G02135/north/monthly/data/N_09_extent_v4.0.csv",
+    "https://noaadata.apps.nsidc.org/NOAA/G02135/north/monthly/data/N_09_extent_v3.0.csv",
+]
 STORMS_URL = "https://www.nhc.noaa.gov/CurrentStorms.json"
 CO2_URL = "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_daily_mlo.txt"
 GRANTS_URL = "https://api.grants.gov/v1/api/search2"
@@ -132,10 +140,93 @@ def storms():
     print(f"Wrote {len(out)} active storms")
 
 
+def noaa_monthly(url, value_col):
+    """Rows of 'year month decimal value ...' -> [[decimal_year, value], ...], skipping missing values."""
+    pts = []
+    for line in fetch(url).decode().splitlines():
+        if not line.strip() or line.startswith("#"):
+            continue
+        parts = line.split()
+        try:
+            dec, val = float(parts[2]), float(parts[value_col])
+        except (IndexError, ValueError):
+            continue
+        if val > 0:
+            pts.append([round(dec, 3), val])
+    return pts
+
+
+def gistemp():
+    lines = fetch(GISTEMP_URL).decode().splitlines()
+    header_i = next(i for i, l in enumerate(lines) if l.startswith("Year,"))
+    cols = lines[header_i].split(",")
+    jd = cols.index("J-D")
+    pts = []
+    for line in lines[header_i + 1:]:
+        parts = line.split(",")
+        try:
+            pts.append([int(parts[0]), float(parts[jd])])
+        except (IndexError, ValueError):
+            continue  # current year shows *** until complete
+    return pts
+
+
+def oni():
+    season_mid = {"DJF": 1, "JFM": 2, "FMA": 3, "MAM": 4, "AMJ": 5, "MJJ": 6, "JJA": 7, "JAS": 8, "ASO": 9, "SON": 10, "OND": 11, "NDJ": 12}
+    pts = []
+    for line in fetch(ONI_URL).decode().splitlines():
+        parts = line.split()
+        if len(parts) >= 4 and parts[0] in season_mid:
+            try:
+                pts.append([round(int(parts[1]) + (season_mid[parts[0]] - 0.5) / 12, 3), float(parts[3])])
+            except ValueError:
+                continue
+    return pts
+
+
+def seaice():
+    for url in SEAICE_URLS:
+        try:
+            text = fetch(url).decode()
+        except Exception:
+            continue
+        pts = []
+        for line in text.splitlines()[1:]:
+            parts = [p.strip() for p in line.split(",")]
+            try:
+                year, extent = int(parts[0]), float(parts[4])
+            except (IndexError, ValueError):
+                continue
+            if extent > 0:
+                pts.append([year, extent])
+        if pts:
+            return pts
+    raise ValueError("no sea ice file could be read")
+
+
+def climate():
+    series = {}
+    for key, getter in [
+        ("co2", lambda: noaa_monthly(CO2_MONTHLY_URL, 3)),
+        ("ch4", lambda: noaa_monthly(CH4_URL, 3)),
+        ("temp", gistemp),
+        ("oni", oni),
+        ("seaice", seaice),
+    ]:
+        try:
+            series[key] = getter()
+            print(f"climate {key}: {len(series[key])} points")
+        except Exception as exc:
+            print(f"WARN climate {key}: {exc}", file=sys.stderr)
+    if not series:
+        raise ValueError("no climate series fetched")
+    write("climate.json", {"updated": datetime.now(timezone.utc).isoformat(), "series": series})
+
+
 def main():
     DATA.mkdir(exist_ok=True)
     failures = 0
-    steps = (co2, grants, storms)
+    steps = (co2, grants, storms, climate)
     for step in steps:
         try:
             step()

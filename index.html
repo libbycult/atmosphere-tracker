@@ -27,6 +27,7 @@
     <a class="tab" role="tab" id="tab-papers" href="#papers" aria-controls="view-papers">Papers</a>
     <a class="tab" role="tab" id="tab-scientists" href="#scientists" aria-controls="view-scientists">Scientists</a>
     <a class="tab" role="tab" id="tab-sky" href="#sky" aria-controls="view-sky">Sky Now</a>
+    <a class="tab" role="tab" id="tab-charts" href="#charts" aria-controls="view-charts">Charts</a>
     <a class="tab" role="tab" id="tab-jobs" href="#jobs" aria-controls="view-jobs">Jobs</a>
     <a class="tab" role="tab" id="tab-funding" href="#funding" aria-controls="view-funding">Funding</a>
     <a class="tab" role="tab" id="tab-events" href="#events" aria-controls="view-events">Conferences</a>
@@ -184,6 +185,22 @@
     <p class="intro small">GeoColor imagery from NOAA's GOES satellites via <a href="https://www.star.nesdis.noaa.gov/GOES/" target="_blank" rel="noopener">NOAA STAR</a>. Images refresh every 10 minutes while this page is open.</p>
   </section>
 
+  <!-- CHARTS -->
+  <section id="view-charts" class="view" role="tabpanel" aria-labelledby="tab-charts" hidden>
+    <p class="intro">The planet's vital signs, updated from NOAA and NASA every 6 hours. Hover or tap a chart to read values.</p>
+    <div class="charts" id="climate-charts"></div>
+    <figure class="chart" id="pubs-chart">
+      <div class="chart-head">
+        <div>
+          <h2 class="chart-title">Atmospheric science papers per year</h2>
+          <p class="chart-sub">Live from OpenAlex. Pick a topic to see how fast it's growing.</p>
+        </div>
+        <label class="chart-pick"><span class="sr-only">Topic</span><select id="pubs-topic"></select></label>
+      </div>
+      <div class="chart-body" id="pubs-body"></div>
+    </figure>
+  </section>
+
   <!-- DATA & PROGRAMS -->
   <section id="view-resources" class="view" role="tabpanel" aria-labelledby="tab-resources" hidden>
     <h2 class="section-title">Datasets</h2>
@@ -200,7 +217,7 @@
 </main>
 
 <footer class="wrap foot">
-  <p>Papers come live from <a href="https://openalex.org" target="_blank" rel="noopener">OpenAlex</a>, an open index of scholarly work. "Free to read" links are legal open-access copies; subscription papers link to the publisher, where your library login gives access. Jobs come daily from the AGU and Science Careers job boards, funding from <a href="https://www.grants.gov" target="_blank" rel="noopener">Grants.gov</a>, storms from the National Hurricane Center, satellite images from NOAA, and CO₂ from <a href="https://gml.noaa.gov/ccgg/trends/" target="_blank" rel="noopener">NOAA's Global Monitoring Laboratory</a>.</p>
+  <p>Papers come live from <a href="https://openalex.org" target="_blank" rel="noopener">OpenAlex</a>, an open index of scholarly work. "Free to read" links are legal open-access copies; subscription papers link to the publisher, where your library login gives access. Jobs come daily from the AGU and Science Careers job boards, funding from <a href="https://www.grants.gov" target="_blank" rel="noopener">Grants.gov</a>, storms from the National Hurricane Center, climate records from NOAA, NASA GISS and NSIDC, satellite images from NOAA, and CO₂ from <a href="https://gml.noaa.gov/ccgg/trends/" target="_blank" rel="noopener">NOAA's Global Monitoring Laboratory</a>.</p>
 </footer>
 
 <script src="assets/app.js"></script>

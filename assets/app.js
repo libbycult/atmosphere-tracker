@@ -74,7 +74,7 @@ const state = Object.assign(
 let saved = load("atmo.saved", {}); // OpenAlex id -> work, the viewer's reading list
 
 /* ---------- Tabs ---------- */
-const TABS = ["papers", "scientists", "sky", "jobs", "funding", "events", "resources", "social", "legends"];
+const TABS = ["papers", "scientists", "sky", "charts", "jobs", "funding", "events", "resources", "social", "legends"];
 const loaded = {};
 function showTab() {
   const hash = location.hash.slice(1);
@@ -85,7 +85,7 @@ function showTab() {
   }
   if (!loaded[tab]) {
     loaded[tab] = true;
-    ({ scientists: initScientists, sky: loadSky, jobs: loadJobs, funding: loadGrants, events: renderEvents, resources: renderResources, social: renderSocial, legends: renderLegends })[tab]?.();
+    ({ scientists: initScientists, sky: loadSky, charts: initCharts, jobs: loadJobs, funding: loadGrants, events: renderEvents, resources: renderResources, social: renderSocial, legends: renderLegends })[tab]?.();
   }
 }
 window.addEventListener("hashchange", showTab);
@@ -760,6 +760,172 @@ const PROGRAMS = [
 function renderResources() {
   $("#dataset-list").innerHTML = DATASETS.map(([name, note, url]) => `<li><a href="${url}" target="_blank" rel="noopener">${esc(name)}</a><span>${esc(note)}</span></li>`).join("");
   $("#program-list").innerHTML = PROGRAMS.map(([school, dept, url]) => `<li><a href="${url}" target="_blank" rel="noopener">${esc(school)}</a><span>${esc(dept)}</span></li>`).join("");
+}
+
+/* ---------- Charts ---------- */
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const monthLabel = (dec) => { const y = Math.floor(dec); return `${MONTHS[Math.min(11, Math.floor((dec - y) * 12))]} ${y}`; };
+const yearLabel = (x) => String(Math.round(x));
+
+const CLIMATE = [
+  { key: "co2", title: "Carbon dioxide at Mauna Loa", sub: "Monthly mean, NOAA Global Monitoring Laboratory. The Keeling Curve.", unit: "ppm", dec: 1, label: monthLabel, area: true },
+  { key: "temp", title: "Global surface temperature", sub: "Annual anomaly vs. 1951–1980, NASA GISTEMP", unit: "°C", dec: 2, label: yearLabel, zero: true, signed: true },
+  { key: "ch4", title: "Global methane", sub: "Monthly mean, NOAA Global Monitoring Laboratory", unit: "ppb", dec: 0, label: monthLabel, area: true },
+  { key: "seaice", title: "Arctic sea ice in September", sub: "Mean extent in the month of the yearly minimum, NSIDC Sea Ice Index", unit: "million km²", dec: 2, label: yearLabel, area: true, fromZero: true },
+  { key: "oni", title: "El Niño and La Niña", sub: "Oceanic Niño Index since 2000. Above +0.5 °C is El Niño, below −0.5 °C is La Niña.", unit: "°C", dec: 1, label: monthLabel, diverging: true, since: 2000, signed: true },
+];
+
+function niceTicks(min, max, count = 5) {
+  const span = max - min || 1;
+  const step0 = span / count;
+  const mag = 10 ** Math.floor(Math.log10(step0));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= step0);
+  const ticks = [];
+  for (let v = Math.ceil(min / step) * step; v <= max + step * 1e-9; v += step) ticks.push(+v.toFixed(10));
+  return ticks;
+}
+const fmt = (v, dec, signed) => `${signed && v > 0 ? "+" : ""}${v.toLocaleString(undefined, { minimumFractionDigits: dec, maximumFractionDigits: dec })}`;
+
+// Draws a line, area or bar chart of [[x, y], ...] into `body`, with a hover crosshair and tooltip.
+function drawChart(body, pts, opt) {
+  const W = Math.max(280, body.clientWidth), H = opt.height || 220;
+  const m = { l: 46, r: 14, t: 12, b: 26 };
+  const pw = W - m.l - m.r, ph = H - m.t - m.b;
+  const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+  const xMin = Math.min(...xs), xMax = Math.max(...xs);
+  let yMin = Math.min(...ys), yMax = Math.max(...ys);
+  if (opt.fromZero || opt.bars || opt.diverging) yMin = Math.min(0, yMin);
+  if (opt.diverging) { const a = Math.max(Math.abs(yMin), Math.abs(yMax), 1); yMin = -a; yMax = a; }
+  const pad = (yMax - yMin) * 0.06; if (!opt.fromZero && !opt.bars) yMin -= pad; yMax += pad;
+  const yt = niceTicks(yMin, yMax, 4);
+  yMin = Math.min(yMin, yt[0]); yMax = Math.max(yMax, yt[yt.length - 1]);
+  const bw = opt.bars || opt.diverging ? pw / pts.length : 0;
+  const X = (x) => m.l + (bw ? (pts.findIndex((p) => p[0] === x) + 0.5) * bw : ((x - xMin) / (xMax - xMin || 1)) * pw);
+  const Y = (y) => m.t + (1 - (y - yMin) / (yMax - yMin)) * ph;
+  const xt = opt.bars ? pts.filter((_, i) => i % Math.ceil(pts.length / 6) === 0).map((p) => p[0])
+    : niceTicks(xMin, xMax, Math.max(3, Math.floor(pw / 90))).filter((v) => v >= xMin && v <= xMax);
+
+  let marks = "";
+  if (opt.bars || opt.diverging) {
+    const w = Math.min(24, Math.max(1, bw - (bw > 6 ? 2 : 0)));
+    const zero = Y(0);
+    marks = pts.map(([x, y]) => {
+      const cx = X(x), top = Y(Math.max(0, y)), bot = Y(Math.min(0, y));
+      const h = Math.max(0.5, bot - top), r = Math.min(4, w / 2, h);
+      const cls = opt.diverging ? (y >= 0 ? "warm" : "cool") : "bar";
+      if (r < 1) return `<rect class="${cls}" x="${cx - w / 2}" y="${top}" width="${w}" height="${h}"/>`;
+      // rounded at the data end, square at the baseline
+      return y >= 0
+        ? `<path class="${cls}" d="M${cx - w / 2},${zero} V${top + r} Q${cx - w / 2},${top} ${cx - w / 2 + r},${top} H${cx + w / 2 - r} Q${cx + w / 2},${top} ${cx + w / 2},${top + r} V${zero} Z"/>`
+        : `<path class="${cls}" d="M${cx - w / 2},${zero} V${bot - r} Q${cx - w / 2},${bot} ${cx - w / 2 + r},${bot} H${cx + w / 2 - r} Q${cx + w / 2},${bot} ${cx + w / 2},${bot - r} V${zero} Z"/>`;
+    }).join("");
+  } else {
+    const d = pts.map(([x, y], i) => `${i ? "L" : "M"}${X(x).toFixed(1)},${Y(y).toFixed(1)}`).join("");
+    if (opt.area) marks += `<path class="wash" d="${d}L${X(xMax)},${m.t + ph}L${X(xMin)},${m.t + ph}Z"/>`;
+    marks += `<path class="line" d="${d}"/>`;
+    const [lx, ly] = pts[pts.length - 1];
+    marks += `<circle class="end" cx="${X(lx)}" cy="${Y(ly)}" r="4"/>`;
+  }
+  const grid = yt.map((v) => `<line class="grid" x1="${m.l}" x2="${m.l + pw}" y1="${Y(v)}" y2="${Y(v)}"/><text class="tick" x="${m.l - 8}" y="${Y(v) + 4}" text-anchor="end">${fmt(v, Math.abs(v) < 10 && v % 1 ? 1 : 0, opt.signed)}</text>`).join("");
+  const zeroLine = (opt.zero || opt.diverging) && yMin < 0 && yMax > 0 ? `<line class="zero" x1="${m.l}" x2="${m.l + pw}" y1="${Y(0)}" y2="${Y(0)}"/>` : "";
+  const thresholds = opt.diverging ? [0.5, -0.5].map((v) => `<line class="thresh" x1="${m.l}" x2="${m.l + pw}" y1="${Y(v)}" y2="${Y(v)}"/>`).join("") : "";
+  const xticks = xt.map((v) => `<text class="tick" x="${X(v)}" y="${H - 6}" text-anchor="middle">${opt.bars ? v : Math.round(v)}</text>`).join("");
+
+  body.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${esc(opt.title)}">
+      ${grid}${zeroLine}${thresholds}${marks}${xticks}
+      <line class="cross" x1="0" x2="0" y1="${m.t}" y2="${m.t + ph}" visibility="hidden"/>
+      <circle class="hover-dot" r="4" visibility="hidden"/>
+      <rect class="hit" x="${m.l}" y="${m.t}" width="${pw}" height="${ph}"/>
+    </svg><div class="tip" hidden></div>`;
+
+  const svg = body.querySelector("svg"), tip = body.querySelector(".tip");
+  const cross = svg.querySelector(".cross"), dot = svg.querySelector(".hover-dot");
+  const show = (ev) => {
+    const rect = svg.getBoundingClientRect();
+    const px = ((ev.clientX - rect.left) / rect.width) * W;
+    let best = 0, bd = Infinity;
+    pts.forEach((p, i) => { const dd = Math.abs(X(p[0]) - px); if (dd < bd) { bd = dd; best = i; } });
+    const [x, y] = pts[best];
+    const cx = X(x), cy = Y(y);
+    cross.setAttribute("x1", cx); cross.setAttribute("x2", cx); cross.setAttribute("visibility", "visible");
+    if (!opt.bars && !opt.diverging) { dot.setAttribute("cx", cx); dot.setAttribute("cy", cy); dot.setAttribute("visibility", "visible"); }
+    tip.innerHTML = `<b>${fmt(y, opt.dec, opt.signed)} ${esc(opt.unit)}</b><span>${esc(opt.label(x))}</span>`;
+    tip.hidden = false;
+    const left = (cx / W) * rect.width;
+    tip.style.left = `${Math.min(Math.max(left, 60), rect.width - 60)}px`;
+    tip.style.top = `${(cy / H) * rect.height}px`;
+  };
+  const hide = () => { tip.hidden = true; cross.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); };
+  const hit = svg.querySelector(".hit");
+  hit.addEventListener("pointermove", show);
+  hit.addEventListener("pointerdown", show);
+  hit.addEventListener("pointerleave", hide);
+}
+
+function chartTable(pts, opt) {
+  const rows = pts.slice().reverse().map(([x, y]) => `<tr><td>${esc(opt.label(x))}</td><td>${fmt(y, opt.dec, opt.signed)}</td></tr>`).join("");
+  return `<details class="chart-table"><summary>Data table</summary><div class="table-scroll"><table><thead><tr><th>Date</th><th>${esc(opt.unit)}</th></tr></thead><tbody>${rows}</tbody></table></div></details>`;
+}
+
+let climateData = null;
+function renderClimate() {
+  const wrap = $("#climate-charts");
+  if (!climateData) return;
+  const series = climateData.series || {};
+  const defs = CLIMATE.filter((c) => series[c.key]?.length);
+  if (!defs.length) {
+    wrap.innerHTML = `<p class="empty"><strong>Charts are on their way.</strong>The climate records are collected every 6 hours; check back shortly.</p>`;
+    return;
+  }
+  wrap.innerHTML = defs.map((c) => `<figure class="chart" id="chart-${c.key}">
+      <div class="chart-head">
+        <div><h2 class="chart-title">${esc(c.title)}</h2><p class="chart-sub">${esc(c.sub)}</p></div>
+        <div class="chart-stat" id="stat-${c.key}"></div>
+      </div>
+      <div class="chart-body"></div>
+      <div class="chart-foot"></div>
+    </figure>`).join("");
+  for (const c of defs) {
+    let pts = series[c.key];
+    if (c.since) pts = pts.filter((p) => p[0] >= c.since);
+    const fig = $(`#chart-${c.key}`);
+    const [lx, ly] = pts[pts.length - 1];
+    $(`#stat-${c.key}`).innerHTML = `<b>${fmt(ly, c.dec, c.signed)}</b> ${esc(c.unit)}<span>${esc(c.label(lx))}</span>`;
+    drawChart(fig.querySelector(".chart-body"), pts, c);
+    fig.querySelector(".chart-foot").innerHTML = chartTable(pts, c);
+  }
+}
+
+let pubsData = null;
+async function loadPubs() {
+  const body = $("#pubs-body");
+  body.innerHTML = `<p class="status">Loading…</p>`;
+  const topic = TOPICS.find((t) => t.id === $("#pubs-topic").value);
+  const thisYear = new Date().getFullYear();
+  const filters = [`primary_topic.subfield.id:${ATMOS_SUBFIELD}`, "type:article|preprint|review", `publication_year:${thisYear - 25}-${thisYear - 1}`];
+  if (topic?.terms) filters.push(`title_and_abstract.search:${topic.terms.join("|")}`);
+  try {
+    const res = await fetch(`${OPENALEX}?${new URLSearchParams({ filter: filters.join(","), group_by: "publication_year" })}`);
+    if (!res.ok) throw new Error(`OpenAlex answered ${res.status}`);
+    const data = await res.json();
+    pubsData = (data.group_by || []).map((g) => [Number(g.key), g.count]).filter(([y]) => y >= thisYear - 25 && y < thisYear).sort((a, b) => a[0] - b[0]);
+    drawPubs();
+  } catch (err) {
+    body.innerHTML = `<p class="status error">Couldn't load the chart (${esc(err.message)}).</p>`;
+  }
+}
+function drawPubs() {
+  if (!pubsData?.length) return;
+  drawChart($("#pubs-body"), pubsData, { title: "Papers per year", unit: "papers", dec: 0, label: yearLabel, bars: true, height: 240 });
+}
+
+function initCharts() {
+  $("#pubs-topic").innerHTML = TOPICS.map((t) => `<option value="${t.id}">${esc(t.label)}</option>`).join("");
+  $("#pubs-topic").addEventListener("change", loadPubs);
+  fetchJson("data/climate.json").then((d) => { climateData = d || { series: {} }; renderClimate(); });
+  loadPubs();
+  let t;
+  addEventListener("resize", () => { clearTimeout(t); t = setTimeout(() => { if (!$("#view-charts").hidden) { renderClimate(); drawPubs(); } }, 150); });
 }
 
 /* ---------- Legends ---------- */
