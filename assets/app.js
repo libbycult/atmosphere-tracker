@@ -87,7 +87,6 @@ function showTab() {
     loaded[tab] = true;
     ({ jobs: loadJobs, funding: loadGrants, events: renderEvents, social: renderSocial, legends: renderLegends })[tab]?.();
   }
-  updateAltimeter();
 }
 window.addEventListener("hashchange", showTab);
 
@@ -574,66 +573,19 @@ function renderLegends() {
     </li>`).join("");
 }
 
-/* ---------- Barograph, clock, CO2 and altimeter ---------- */
-// Draw a barograph-style trace across the header. Seeded by the date so it changes daily but not on reload.
-function drawTrace() {
-  const d = new Date();
-  let seed = d.getUTCFullYear() * 400 + d.getUTCMonth() * 32 + d.getUTCDate();
-  const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  const waves = [0, 1, 2].map(() => ({ f: 0.5 + rand() * 2.5, p: rand() * Math.PI * 2, a: 6 + rand() * 12 }));
-  const pts = [];
-  for (let x = 0; x <= 1000; x += 8) {
-    let y = 45;
-    for (const w of waves) y += w.a * Math.sin((x / 1000) * Math.PI * 2 * w.f + w.p);
-    y += (rand() - 0.5) * 2.5; // pen jitter
-    pts.push(`${x},${Math.max(6, Math.min(84, y)).toFixed(1)}`);
-  }
-  const line = $("#trace-line");
-  line.setAttribute("d", `M${pts.join(" L")}`);
-  // hour ticks, one per 3 hours over a day
-  $("#trace-ticks").innerHTML = Array.from({ length: 9 }, (_, i) => `<line x1="${i * 125}" y1="0" x2="${i * 125}" y2="90"/>`).join("");
-  if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    const len = line.getTotalLength();
-    line.style.setProperty("--len", len);
-    line.style.strokeDasharray = len;
-    line.style.strokeDashoffset = len;
-    line.classList.add("drawing");
-  }
-}
-
-function tickClock() {
-  const d = new Date();
-  $("#zulu").textContent = `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")} Z`;
-}
-
+/* ---------- CO2 ---------- */
 async function loadCo2() {
   const data = await fetchJson("data/co2.json");
   if (!data?.ppm) return;
   $("#co2-value").textContent = `${data.ppm.toFixed(2)} ppm`;
   if (data.yearAgo) {
     const d = data.ppm - data.yearAgo;
-    $("#co2-delta").textContent = `${d >= 0 ? "+" : ""}${d.toFixed(2)} vs. a year ago`;
+    $("#co2-delta").textContent = `${d >= 0 ? "+" : ""}${d.toFixed(1)} in a year`;
   }
-  $("#co2").title = `Daily mean for ${data.date}`;
+  $("#co2").title = `Mauna Loa daily mean for ${data.date}`;
   $("#co2").hidden = false;
 }
 
-const LAYERS = [[0, "Troposphere"], [12, "Stratosphere"], [50, "Mesosphere"], [85, "Thermosphere"]];
-function updateAltimeter() {
-  const max = document.documentElement.scrollHeight - innerHeight;
-  const f = max > 0 ? Math.min(1, scrollY / max) : 0;
-  const km = Math.round(f * 120);
-  // track colors: troposphere 0-10%, stratosphere 10-42%, mesosphere 42-71%, thermosphere 71-100%
-  const pos = km <= 12 ? km / 12 * 10 : km <= 50 ? 10 + (km - 12) / 38 * 32 : km <= 85 ? 42 + (km - 50) / 35 * 29 : 71 + (km - 85) / 35 * 29;
-  $("#alt-dot").style.bottom = `${pos}%`;
-  $("#alt-km").textContent = `${km} km`;
-  $("#alt-layer").textContent = [...LAYERS].reverse().find(([k]) => km >= k)[1];
-}
-addEventListener("scroll", updateAltimeter, { passive: true });
-
-drawTrace();
-tickClock();
-setInterval(tickClock, 30 * 1000);
 loadCo2();
 initPapers();
 initJobs();

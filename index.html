@@ -7,23 +7,18 @@
 <meta name="description" content="New atmospheric science papers, jobs, funding, conferences and conversation in one place.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=Literata:ital,opsz,wght@0,7..72,500;0,7..72,600;1,7..72,400&family=IBM+Plex+Mono:wght@400;500&family=Caveat:wght@700&family=Archivo:wdth,wght@62..125,500;62..125,700;62..125,800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=Caveat:wght@700&display=swap">
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
-<header class="drum" id="drum">
-  <div class="wrap drum-inner">
-    <div class="drum-top">
-      <a class="brand" href="#papers">Atmosphere Tracker</a>
-      <dl class="readout">
-        <div><dt>Time</dt><dd id="zulu">--:-- Z</dd></div>
-        <div id="co2" hidden><dt><a href="https://gml.noaa.gov/ccgg/trends/" target="_blank" rel="noopener">CO₂ Mauna Loa</a></dt><dd><span id="co2-value"></span> <small id="co2-delta"></small></dd></div>
-      </dl>
-    </div>
-    <svg class="trace" id="trace" viewBox="0 0 1000 90" preserveAspectRatio="none" aria-hidden="true">
-      <g class="ticks" id="trace-ticks"></g>
-      <path id="trace-line" d="" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
-    </svg>
+<header class="masthead">
+  <div class="wrap masthead-inner">
+    <a class="brand" href="#papers">Atmosphere Tracker</a>
+    <a class="co2" id="co2" href="https://gml.noaa.gov/ccgg/trends/" target="_blank" rel="noopener" hidden>
+      <span class="co2-label">CO₂ today</span>
+      <span class="co2-value" id="co2-value"></span>
+      <span class="co2-delta" id="co2-delta"></span>
+    </a>
   </div>
 </header>
 
@@ -37,11 +32,6 @@
     <a class="tab" role="tab" id="tab-legends" href="#legends" aria-controls="view-legends">Legends</a>
   </div>
 </nav>
-
-<aside class="altimeter" id="altimeter" aria-hidden="true">
-  <div class="alt-track"><div class="alt-dot" id="alt-dot"></div></div>
-  <div class="alt-read"><span id="alt-km">0 km</span><span id="alt-layer">Troposphere</span></div>
-</aside>
 
 <main class="wrap">
   <!-- PAPERS -->
