@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AtmoScholar</title>
+<meta name="description" content="New atmospheric science papers, jobs, funding, conferences and conversation in one place.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Literata:opsz,wght@7..72,500;7..72,600&family=JetBrains+Mono:wght@400;500&family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header class="sky" id="sky">
+  <div class="stars" aria-hidden="true"></div>
+  <div class="cloud c1" aria-hidden="true"></div>
+  <div class="cloud c2" aria-hidden="true"></div>
+  <div class="cloud c3" aria-hidden="true"></div>
+  <div class="wrap sky-inner">
+    <div class="sky-top">
+      <a class="brand" href="#papers" aria-label="AtmoScholar home">
+        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M2 22 Q9 14 16 22 T30 22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+          <path d="M2 15 Q9 7 16 15 T30 15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".6"/>
+          <path d="M2 8 Q9 0 16 8 T30 8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".3"/>
+        </svg>
+        <span>AtmoScholar</span>
+      </a>
+      <a class="co2" id="co2" href="https://gml.noaa.gov/ccgg/trends/" target="_blank" rel="noopener" hidden>
+        <span class="co2-label">CO₂ at Mauna Loa</span>
+        <span class="co2-value" id="co2-value"></span>
+        <span class="co2-delta" id="co2-delta"></span>
+      </a>
+    </div>
+    <p class="tagline" id="tagline">Papers, jobs and news from the whole atmosphere, surface to thermosphere.</p>
+  </div>
+</header>
+
+<nav class="tabbar" aria-label="Sections">
+  <div class="wrap tabs" role="tablist">
+    <a class="tab" role="tab" id="tab-papers" href="#papers" aria-controls="view-papers">Papers</a>
+    <a class="tab" role="tab" id="tab-jobs" href="#jobs" aria-controls="view-jobs">Jobs</a>
+    <a class="tab" role="tab" id="tab-funding" href="#funding" aria-controls="view-funding">Funding</a>
+    <a class="tab" role="tab" id="tab-events" href="#events" aria-controls="view-events">Conferences</a>
+    <a class="tab" role="tab" id="tab-social" href="#social" aria-controls="view-social">Social</a>
+  </div>
+</nav>
+
+<aside class="altimeter" id="altimeter" aria-hidden="true">
+  <div class="alt-track"><div class="alt-dot" id="alt-dot"></div></div>
+  <div class="alt-read"><span id="alt-km">0 km</span><span id="alt-layer">Troposphere</span></div>
+</aside>
+
+<main class="wrap">
+  <!-- PAPERS -->
+  <section id="view-papers" class="view" role="tabpanel" aria-labelledby="tab-papers">
+    <form id="paper-search" class="searchbar" role="search">
+      <label class="sr-only" for="q">Search papers</label>
+      <input id="q" type="search" placeholder="Search titles and abstracts, e.g. mesoscale convective systems" autocomplete="off">
+      <button type="submit" class="btn btn-primary">Search</button>
+    </form>
+
+    <div class="modes" role="group" aria-label="Paper view">
+      <button type="button" class="mode" data-mode="latest">Latest</button>
+      <button type="button" class="mode" data-mode="trending">Trending</button>
+      <button type="button" class="mode" data-mode="saved">Reading list <span class="count" id="saved-count">0</span></button>
+    </div>
+
+    <div class="chips" id="topic-chips" aria-label="Topics"></div>
+
+    <div class="filters" id="paper-filters">
+      <label>Journal
+        <select id="journal"></select>
+      </label>
+      <label>Type
+        <select id="ptype">
+          <option value="article|preprint|review">Articles and preprints</option>
+          <option value="article|review">Journal articles only</option>
+          <option value="preprint">Preprints only</option>
+        </select>
+      </label>
+      <label id="sort-wrap">Sort
+        <select id="sort">
+          <option value="publication_date:desc">Newest first</option>
+          <option value="cited_by_count:desc">Most cited</option>
+          <option value="relevance_score:desc">Best match</option>
+        </select>
+      </label>
+      <label class="check"><input type="checkbox" id="oa-only"> Free to read only</label>
+    </div>
+
+    <p class="status" id="paper-status" aria-live="polite"></p>
+    <ol class="results" id="paper-list"></ol>
+    <div class="more"><button class="btn" id="paper-more" hidden>Load more papers</button></div>
+  </section>
+
+  <!-- JOBS -->
+  <section id="view-jobs" class="view" role="tabpanel" aria-labelledby="tab-jobs" hidden>
+    <form id="job-search" class="searchbar" role="search">
+      <label class="sr-only" for="jq">Search jobs</label>
+      <input id="jq" type="search" placeholder="Filter by title, employer, or place, e.g. postdoc, NOAA, Colorado" autocomplete="off">
+    </form>
+    <div class="chips" id="sector-chips" aria-label="Sector"></div>
+    <p class="status" id="job-status" aria-live="polite"></p>
+    <ol class="results" id="job-list"></ol>
+
+    <aside class="panel">
+      <h2>More job boards</h2>
+      <p>These sites don't offer a feed we can read, so check them directly.</p>
+      <ul class="linkgrid">
+        <li><a href="https://careercenter.ametsoc.org/jobs/" target="_blank" rel="noopener">AMS Career Center</a><span>US meteorology, academia and industry</span></li>
+        <li><a href="https://www.egu.eu/jobs/" target="_blank" rel="noopener">EGU Jobs</a><span>Europe, mostly research posts</span></li>
+        <li><a href="https://www.usajobs.gov/search/results/?k=meteorologist" target="_blank" rel="noopener">USAJOBS: meteorologist</a><span>NOAA, NWS, NASA, DoD</span></li>
+        <li><a href="https://www.ucar.edu/opportunities/careers" target="_blank" rel="noopener">UCAR / NCAR careers</a><span>Research and engineering</span></li>
+        <li><a href="https://www.nature.com/naturecareers/jobs/search?keywords=atmospheric" target="_blank" rel="noopener">Nature Careers</a><span>International academia</span></li>
+        <li><a href="https://www.earthworks-jobs.com/atmosphere.shtml" target="_blank" rel="noopener">Earthworks: atmosphere</a><span>UK and Europe, academia and industry</span></li>
+      </ul>
+    </aside>
+  </section>
+
+  <!-- FUNDING -->
+  <section id="view-funding" class="view" role="tabpanel" aria-labelledby="tab-funding" hidden>
+    <p class="intro">Open and upcoming US federal grant calls that mention atmospheric science, weather or climate, gathered daily from Grants.gov.</p>
+    <p class="status" id="grant-status" aria-live="polite"></p>
+    <ol class="results" id="grant-list"></ol>
+    <aside class="panel">
+      <h2>Program pages to bookmark</h2>
+      <ul class="linkgrid">
+        <li><a href="https://www.nsf.gov/geo/ags" target="_blank" rel="noopener">NSF Atmospheric and Geospace Sciences</a><span>Core research grants, CAREER, postdoc fellowships</span></li>
+        <li><a href="https://cpo.noaa.gov/funding-opportunities/" target="_blank" rel="noopener">NOAA Climate Program Office</a><span>Climate research competitions</span></li>
+        <li><a href="https://science.nasa.gov/researchers/sara/grant-solicitations/" target="_blank" rel="noopener">NASA ROSES</a><span>Earth science research solicitations</span></li>
+        <li><a href="https://www.energy.gov/science/ber/biological-and-environmental-research" target="_blank" rel="noopener">DOE Biological and Environmental Research</a><span>ASR, ARM and Earth system modeling</span></li>
+      </ul>
+    </aside>
+  </section>
+
+  <!-- EVENTS -->
+  <section id="view-events" class="view" role="tabpanel" aria-labelledby="tab-events" hidden>
+    <p class="intro">Major meetings in the field, with countdowns. Always confirm deadlines on the meeting's own site.</p>
+    <ol class="events" id="event-list"></ol>
+  </section>
+
+  <!-- SOCIAL -->
+  <section id="view-social" class="view" role="tabpanel" aria-labelledby="tab-social" hidden>
+    <p class="intro">X and LinkedIn don't let other websites read posts, so each button opens a live search on that site, sorted by newest.</p>
+    <div class="social-grid" id="social-grid"></div>
+    <aside class="panel">
+      <h2>Accounts worth following</h2>
+      <ul class="linkgrid" id="follow-list"></ul>
+    </aside>
+  </section>
+</main>
+
+<footer class="wrap foot">
+  <p>Papers come live from <a href="https://openalex.org" target="_blank" rel="noopener">OpenAlex</a>, an open index of scholarly work. "Free to read" links are legal open-access copies; subscription papers link to the publisher, where your library login gives access. Jobs come daily from the AGU and Science Careers job boards, funding from <a href="https://www.grants.gov" target="_blank" rel="noopener">Grants.gov</a>, and CO₂ from <a href="https://gml.noaa.gov/ccgg/trends/" target="_blank" rel="noopener">NOAA's Global Monitoring Laboratory</a>.</p>
+</footer>
+
+<script src="assets/app.js"></script>
+</body>
+</html>

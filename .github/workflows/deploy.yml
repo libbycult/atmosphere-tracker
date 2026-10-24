@@ -1,0 +1,52 @@
+name: Update data and publish site
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 10 * * *" # every day at 10:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Collect job listings
+        run: python scripts/fetch_jobs.py
+        continue-on-error: true
+      - name: Collect CO2 reading and funding calls
+        run: python scripts/fetch_extras.py
+        continue-on-error: true
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - name: Upload collected data for inspection
+        uses: actions/upload-artifact@v4
+        with:
+          name: collected-data
+          path: data/
+          if-no-files-found: ignore
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

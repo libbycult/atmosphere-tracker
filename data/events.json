@@ -1,0 +1,29 @@
+{
+  "_help": "Add or edit meetings here. Dates are YYYY-MM-DD. deadlines is optional; past deadlines hide themselves.",
+  "events": [
+    {
+      "name": "AGU Fall Meeting 2026 (AGU26)",
+      "start": "2026-12-07",
+      "end": "2026-12-11",
+      "city": "San Francisco, CA",
+      "url": "https://www.agu.org/Fall-Meeting",
+      "deadlines": []
+    },
+    {
+      "name": "107th AMS Annual Meeting",
+      "start": "2027-01-10",
+      "end": "2027-01-14",
+      "city": "Denver, CO",
+      "url": "https://annual.ametsoc.org/2027/",
+      "deadlines": []
+    },
+    {
+      "name": "EGU General Assembly 2027",
+      "start": "2027-04-04",
+      "end": "2027-04-09",
+      "city": "Vienna, Austria",
+      "url": "https://www.egu27.eu/",
+      "deadlines": []
+    }
+  ]
+}
