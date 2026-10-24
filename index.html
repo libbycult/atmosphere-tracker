@@ -3,17 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Atmosphere Tracker</title>
-<meta name="description" content="New atmospheric science papers, jobs, funding, conferences and conversation in one place.">
+<title>The Lapse Rate</title>
+<meta name="description" content="The latest in atmospheric science: new papers, live climate data, storms, jobs and funding in one place.">
+<meta property="og:title" content="The Lapse Rate">
+<meta property="og:description" content="The latest in atmospheric science: new papers, live climate data, storms, jobs and funding in one place.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=Caveat:wght@700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=Reenie+Beanie&display=swap">
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
 <header class="masthead">
   <div class="wrap masthead-inner">
-    <a class="brand" href="#papers">Atmosphere Tracker</a>
+    <a class="brand" href="#papers">The Lapse Rate</a>
     <a class="co2" id="co2" href="https://gml.noaa.gov/ccgg/trends/" target="_blank" rel="noopener" hidden>
       <span class="co2-label">CO₂ today</span>
       <span class="co2-value" id="co2-value"></span>
@@ -24,18 +26,37 @@
 
 <nav class="tabbar" aria-label="Sections">
   <div class="wrap tabs" role="tablist">
-    <a class="tab" role="tab" id="tab-papers" href="#papers" aria-controls="view-papers">Papers</a>
-    <a class="tab" role="tab" id="tab-scientists" href="#scientists" aria-controls="view-scientists">Scientists</a>
-    <a class="tab" role="tab" id="tab-sky" href="#sky" aria-controls="view-sky">Sky Now</a>
-    <a class="tab" role="tab" id="tab-charts" href="#charts" aria-controls="view-charts">Charts</a>
-    <a class="tab" role="tab" id="tab-jobs" href="#jobs" aria-controls="view-jobs">Jobs</a>
-    <a class="tab" role="tab" id="tab-funding" href="#funding" aria-controls="view-funding">Funding</a>
-    <a class="tab" role="tab" id="tab-events" href="#events" aria-controls="view-events">Conferences</a>
-    <a class="tab" role="tab" id="tab-resources" href="#resources" aria-controls="view-resources">Data &amp; Programs</a>
-    <a class="tab" role="tab" id="tab-social" href="#social" aria-controls="view-social">Social</a>
-    <a class="tab" role="tab" id="tab-legends" href="#legends" aria-controls="view-legends">Legends</a>
+    <div class="tabgroup"><span class="tabgroup-label">Research</span>
+      <a class="tab" role="tab" id="tab-papers" href="#papers" aria-controls="view-papers">Papers</a>
+      <a class="tab" role="tab" id="tab-scientists" href="#scientists" aria-controls="view-scientists">Scientists</a>
+      <a class="tab" role="tab" id="tab-blogs" href="#blogs" aria-controls="view-blogs">Blogs</a>
+      <a class="tab" role="tab" id="tab-legends" href="#legends" aria-controls="view-legends">Legends</a>
+    </div>
+    <div class="tabgroup"><span class="tabgroup-label">Earth</span>
+      <a class="tab" role="tab" id="tab-sky" href="#sky" aria-controls="view-sky">Sky Now</a>
+      <a class="tab" role="tab" id="tab-charts" href="#charts" aria-controls="view-charts">Charts</a>
+      <a class="tab" role="tab" id="tab-explorer" href="#explorer" aria-controls="view-explorer">Explorer</a>
+    </div>
+    <div class="tabgroup"><span class="tabgroup-label">Career</span>
+      <a class="tab" role="tab" id="tab-jobs" href="#jobs" aria-controls="view-jobs">Jobs</a>
+      <a class="tab" role="tab" id="tab-funding" href="#funding" aria-controls="view-funding">Funding</a>
+      <a class="tab" role="tab" id="tab-events" href="#events" aria-controls="view-events">Conferences</a>
+      <a class="tab" role="tab" id="tab-resources" href="#resources" aria-controls="view-resources">Data &amp; Programs</a>
+      <a class="tab" role="tab" id="tab-social" href="#social" aria-controls="view-social">Social</a>
+    </div>
   </div>
 </nav>
+
+<aside class="altimeter" id="altimeter" aria-hidden="true">
+  <div class="alt-track"><div class="alt-dot" id="alt-dot"></div></div>
+  <div class="alt-labels">
+    <span style="bottom:85%">Thermosphere</span>
+    <span style="bottom:56%">Mesosphere</span>
+    <span style="bottom:26%">Stratosphere</span>
+    <span style="bottom:2%">Troposphere</span>
+  </div>
+  <div class="alt-read"><b id="alt-km">0 km</b><span id="alt-layer">Troposphere</span></div>
+</aside>
 
 <main class="wrap">
   <!-- PAPERS -->
@@ -194,6 +215,17 @@
   <section id="view-charts" class="view" role="tabpanel" aria-labelledby="tab-charts" hidden>
     <p class="intro">The planet's vital signs, updated from NOAA and NASA every 6 hours. Hover or tap a chart to read values.</p>
     <div class="charts" id="climate-charts"></div>
+    <figure class="chart" id="sst-daily" hidden>
+      <div class="chart-head">
+        <div>
+          <h2 class="chart-title">Daily sea surface temperature, every year</h2>
+          <p class="chart-sub">World ocean 60°S–60°N, NOAA OISST v2.1 via Climate Reanalyzer. Each gray line is a past year.</p>
+        </div>
+        <div class="chart-stat" id="sst-daily-stat"></div>
+      </div>
+      <div class="series-key" id="sst-daily-legend"></div>
+      <div class="chart-body" id="sst-daily-body"></div>
+    </figure>
     <figure class="chart" id="emerging">
       <div class="chart-head">
         <div>
@@ -215,6 +247,26 @@
     </figure>
   </section>
 
+  <!-- EXPLORER -->
+  <section id="view-explorer" class="view" role="tabpanel" aria-labelledby="tab-explorer" hidden>
+    <p class="intro">The climate indices researchers watch but the news rarely shows. Pick one, then drag across the chart to zoom in.</p>
+    <div class="index-picker" id="index-picker" role="group" aria-label="Choose an index"></div>
+    <figure class="chart" id="index-chart">
+      <div class="chart-head">
+        <div><h2 class="chart-title" id="index-title"></h2><p class="chart-sub" id="index-sub"></p></div>
+        <div class="chart-stat" id="index-stat"></div>
+      </div>
+      <div class="chart-body" id="index-body"></div>
+      <p class="index-about" id="index-about"></p>
+    </figure>
+  </section>
+
+  <!-- BLOGS -->
+  <section id="view-blogs" class="view" role="tabpanel" aria-labelledby="tab-blogs" hidden>
+    <p class="intro">Atmospheric scientists who write for the rest of us. Some will make you laugh, and all of them make the science click.</p>
+    <ul class="blogs" id="blog-list"></ul>
+  </section>
+
   <!-- DATA & PROGRAMS -->
   <section id="view-resources" class="view" role="tabpanel" aria-labelledby="tab-resources" hidden>
     <h2 class="section-title">Datasets</h2>
@@ -231,7 +283,7 @@
 </main>
 
 <footer class="wrap foot">
-  <p>Papers come live from <a href="https://openalex.org" target="_blank" rel="noopener">OpenAlex</a>, an open index of scholarly work. "Free to read" links are legal open-access copies; subscription papers link to the publisher, where your library login gives access. Jobs come daily from the AGU and Science Careers job boards, funding from <a href="https://www.grants.gov" target="_blank" rel="noopener">Grants.gov</a>, storms from the National Hurricane Center, climate records from NOAA, NASA GISS and NSIDC, satellite images from NOAA, and CO₂ from <a href="https://gml.noaa.gov/ccgg/trends/" target="_blank" rel="noopener">NOAA's Global Monitoring Laboratory</a>.</p>
+  <p>Papers come live from <a href="https://openalex.org" target="_blank" rel="noopener">OpenAlex</a>, an open index of scholarly work. "Free to read" links are legal open-access copies; subscription papers link to the publisher, where your library login gives access. Jobs come daily from the AGU and Science Careers job boards, funding from <a href="https://www.grants.gov" target="_blank" rel="noopener">Grants.gov</a>, storms from the National Hurricane Center, climate records from NOAA, NASA GISS, NSIDC, the Met Office Hadley Centre, Climate Reanalyzer and SILSO, satellite images from NOAA, and CO₂ from <a href="https://gml.noaa.gov/ccgg/trends/" target="_blank" rel="noopener">NOAA's Global Monitoring Laboratory</a>.</p>
 </footer>
 
 <script src="assets/app.js"></script>

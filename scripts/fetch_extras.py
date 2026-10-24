@@ -13,7 +13,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 DATA = Path(__file__).resolve().parent.parent / "data"
-USER_AGENT = "Atmosphere Tracker data collector (+https://github.com/libbycult/atmosphere-tracker)"
+USER_AGENT = "The Lapse Rate data collector (+https://github.com/libbycult/atmosphere-tracker)"
 
 CO2_MONTHLY_URL = "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.txt"
 CH4_URL = "https://gml.noaa.gov/webdata/ccgg/trends/ch4/ch4_mm_gl.txt"
@@ -25,6 +25,25 @@ SEAICE_URLS = [  # NSIDC Sea Ice Index, September (annual minimum) extent; versi
     "https://masie_web.apps.nsidc.org/pub/DATASETS/NOAA/G02135/north/monthly/data/N_09_extent_v4.0.csv",
     "https://masie_web.apps.nsidc.org/pub/DATASETS/NOAA/G02135/north/monthly/data/N_09_extent_v3.0.csv",
 ]
+HADSST_URLS = {
+    "annual": "https://www.metoffice.gov.uk/hadobs/hadsst4/data/data/HadSST.4.2.0.0_annual_GLOBE.csv",
+    "monthly": "https://www.metoffice.gov.uk/hadobs/hadsst4/data/data/HadSST.4.2.0.0_monthly_GLOBE.csv",
+}
+SST_DAILY_URLS = [  # Climate Reanalyzer, NOAA OISST v2.1 world (60S-60N) daily mean SST by year
+    "https://climatereanalyzer.org/clim/sst_daily/json_2clim/oisst2.1_world2_sst_day.json",
+    "https://climatereanalyzer.org/clim/sst_daily/json/oisst2.1_world2_sst_day.json",
+]
+# NOAA PSL standard-format monthly indices: "year v1 ... v12" rows, missing values like -99.99 / -999
+PSL_INDICES = {
+    "qbo": "https://psl.noaa.gov/data/correlation/qbo.data",
+    "nao": "https://psl.noaa.gov/data/correlation/nao.data",
+    "ao": "https://psl.noaa.gov/data/correlation/ao.data",
+    "pdo": "https://psl.noaa.gov/data/correlation/pdo.data",
+    "soi": "https://psl.noaa.gov/data/correlation/soi.data",
+    "amo": "https://psl.noaa.gov/data/correlation/amon.us.data",
+    "nino34": "https://psl.noaa.gov/data/correlation/nina34.anom.data",
+}
+SUNSPOT_URL = "https://www.sidc.be/SILSO/INFO/snmtotcsv.php"
 STORMS_URL = "https://www.nhc.noaa.gov/CurrentStorms.json"
 CO2_URL = "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_daily_mlo.txt"
 GRANTS_URL = "https://api.grants.gov/v1/api/search2"
@@ -206,6 +225,101 @@ def seaice():
     raise ValueError("no sea ice file could be read")
 
 
+def first_float(text):
+    try:
+        return float(text)
+    except (TypeError, ValueError):
+        return None
+
+
+def hadsst(kind):
+    pts = []
+    for line in fetch(HADSST_URLS[kind]).decode().splitlines()[1:]:
+        parts = line.split(",")
+        if len(parts) < 2:
+            continue
+        t, val = parts[0].strip(), first_float(parts[1])
+        if val is None:
+            continue
+        if "-" in t:  # "YYYY-MM"
+            y, m = t.split("-")[:2]
+            x = round(int(y) + (int(m) - 0.5) / 12, 3)
+        else:
+            x = int(float(t))
+        pts.append([x, round(val, 3)])
+    if not pts:
+        raise ValueError("no HadSST rows")
+    return pts
+
+
+def sst_daily():
+    for url in SST_DAILY_URLS:
+        try:
+            rows = json.loads(fetch(url))
+        except Exception as exc:
+            print(f"WARN sst daily {url}: {exc}", file=sys.stderr)
+            continue
+        years, climatology = {}, None
+        for row in rows:
+            name, data = str(row.get("name", "")), row.get("data") or []
+            vals = [round(v, 3) if isinstance(v, (int, float)) else None for v in data]
+            if re.fullmatch(r"\d{4}", name):
+                years[name] = vals
+            elif "mean" in name.lower() and climatology is None:
+                climatology = {"name": name, "data": vals}
+        if years:
+            return {"years": years, "climatology": climatology}
+    raise ValueError("no daily SST source could be read")
+
+
+def psl_index(url):
+    pts = []
+    for line in fetch(url).decode(errors="replace").splitlines():
+        parts = line.split()
+        if len(parts) != 13 or not re.fullmatch(r"\d{4}", parts[0]):
+            continue
+        year = int(parts[0])
+        for m, v in enumerate(parts[1:]):
+            val = first_float(v)
+            if val is None or val <= -99 or val >= 999:
+                continue
+            pts.append([round(year + (m + 0.5) / 12, 3), val])
+    if not pts:
+        raise ValueError("no rows parsed")
+    return pts
+
+
+def sunspots():
+    pts = []
+    for line in fetch(SUNSPOT_URL).decode().splitlines():
+        parts = line.split(";")
+        if len(parts) < 4:
+            continue
+        dec, val = first_float(parts[2]), first_float(parts[3])
+        if dec is not None and val is not None and val >= 0:
+            pts.append([round(dec, 3), val])
+    if not pts:
+        raise ValueError("no sunspot rows")
+    return pts
+
+
+def indices():
+    out = {}
+    for key, url in PSL_INDICES.items():
+        try:
+            out[key] = psl_index(url)
+            print(f"index {key}: {len(out[key])} points")
+        except Exception as exc:
+            print(f"WARN index {key}: {exc}", file=sys.stderr)
+    try:
+        out["sunspots"] = sunspots()
+    except Exception as exc:
+        print(f"WARN sunspots: {exc}", file=sys.stderr)
+    if not out:
+        raise ValueError("no indices fetched")
+    write("indices.json", {"updated": datetime.now(timezone.utc).isoformat(), "series": out})
+
+
 def climate():
     series = {}
     for key, getter in [
@@ -214,6 +328,8 @@ def climate():
         ("temp", gistemp),
         ("oni", oni),
         ("seaice", seaice),
+        ("sst", lambda: hadsst("annual")),
+        ("sst_monthly", lambda: hadsst("monthly")),
     ]:
         try:
             series[key] = getter()
@@ -223,12 +339,18 @@ def climate():
     if not series:
         raise ValueError("no climate series fetched")
     write("climate.json", {"updated": datetime.now(timezone.utc).isoformat(), "series": series})
+    try:
+        daily = sst_daily()
+        write("sst_daily.json", {"updated": datetime.now(timezone.utc).isoformat(), **daily})
+        print(f"sst daily: {len(daily['years'])} years")
+    except Exception as exc:
+        print(f"WARN sst daily: {exc}", file=sys.stderr)
 
 
 def main():
     DATA.mkdir(exist_ok=True)
     failures = 0
-    steps = (co2, grants, storms, climate)
+    steps = (co2, grants, storms, climate, indices)
     for step in steps:
         try:
             step()

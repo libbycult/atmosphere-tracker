@@ -1,4 +1,4 @@
-// Atmosphere Tracker: papers come live from the OpenAlex API. Jobs, funding calls and the CO2 reading
+// The Lapse Rate: papers come live from the OpenAlex API. Jobs, funding calls and the CO2 reading
 // come from files in data/ that a GitHub Action rebuilds daily (see scripts/).
 
 const OPENALEX = "https://api.openalex.org/works";
@@ -87,7 +87,7 @@ const state = Object.assign(
 let saved = load("atmo.saved", {}); // OpenAlex id -> work, the viewer's reading list
 
 /* ---------- Tabs ---------- */
-const TABS = ["papers", "scientists", "sky", "charts", "jobs", "funding", "events", "resources", "social", "legends"];
+const TABS = ["papers", "scientists", "blogs", "legends", "sky", "charts", "explorer", "jobs", "funding", "events", "resources", "social"];
 const loaded = {};
 function showTab() {
   const hash = location.hash.slice(1);
@@ -98,8 +98,9 @@ function showTab() {
   }
   if (!loaded[tab]) {
     loaded[tab] = true;
-    ({ scientists: initScientists, sky: loadSky, charts: initCharts, jobs: loadJobs, funding: loadGrants, events: renderEvents, resources: renderResources, social: renderSocial, legends: renderLegends })[tab]?.();
+    ({ scientists: initScientists, sky: loadSky, charts: initCharts, jobs: loadJobs, funding: loadGrants, events: renderEvents, resources: renderResources, social: renderSocial, legends: renderLegends, explorer: initExplorer, blogs: renderBlogs })[tab]?.();
   }
+  updateAltimeter();
 }
 window.addEventListener("hashchange", showTab);
 
@@ -812,6 +813,7 @@ const yearLabel = (x) => String(Math.round(x));
 const CLIMATE = [
   { key: "co2", title: "Carbon dioxide at Mauna Loa", sub: "Monthly mean, NOAA Global Monitoring Laboratory. The Keeling Curve.", unit: "ppm", dec: 1, label: monthLabel, area: true },
   { key: "temp", title: "Global surface temperature", sub: "Annual anomaly vs. 1951–1980, NASA GISTEMP", unit: "°C", dec: 2, label: yearLabel, zero: true, signed: true },
+  { key: "sst", title: "Global sea surface temperature", sub: "Annual anomaly vs. 1961–1990, Met Office HadSST4", unit: "°C", dec: 2, label: yearLabel, zero: true, signed: true },
   { key: "ch4", title: "Global methane", sub: "Monthly mean, NOAA Global Monitoring Laboratory", unit: "ppb", dec: 0, label: monthLabel, area: true },
   { key: "seaice", title: "Arctic sea ice in September", sub: "Mean extent in the month of the yearly minimum, NSIDC Sea Ice Index", unit: "million km²", dec: 2, label: yearLabel, area: true, fromZero: true },
   { key: "oni", title: "El Niño and La Niña", sub: "Oceanic Niño Index since 2000. Above +0.5 °C is El Niño, below −0.5 °C is La Niña.", unit: "°C", dec: 1, label: monthLabel, diverging: true, since: 2000, signed: true },
@@ -845,7 +847,7 @@ function drawChart(body, pts, opt) {
   const X = (x) => m.l + (bw ? (pts.findIndex((p) => p[0] === x) + 0.5) * bw : ((x - xMin) / (xMax - xMin || 1)) * pw);
   const Y = (y) => m.t + (1 - (y - yMin) / (yMax - yMin)) * ph;
   const xt = opt.bars ? pts.filter((_, i) => i % Math.ceil(pts.length / 6) === 0).map((p) => p[0])
-    : niceTicks(xMin, xMax, Math.max(3, Math.floor(pw / 90))).filter((v) => v >= xMin && v <= xMax);
+    : niceTicks(xMin, xMax, Math.max(3, Math.floor(pw / 90))).filter((v) => v >= xMin && v <= xMax && (xMax - xMin < 4 || v % 1 === 0));
 
   let marks = "";
   if (opt.bars || opt.diverging) {
@@ -877,6 +879,7 @@ function drawChart(body, pts, opt) {
       ${grid}${zeroLine}${thresholds}${marks}${xticks}
       <line class="cross" x1="0" x2="0" y1="${m.t}" y2="${m.t + ph}" visibility="hidden"/>
       <circle class="hover-dot" r="4" visibility="hidden"/>
+      <rect class="brush" x="0" y="${m.t}" width="0" height="${ph}" visibility="hidden"/>
       <rect class="hit" x="${m.l}" y="${m.t}" width="${pw}" height="${ph}"/>
     </svg><div class="tip" hidden></div>`;
 
@@ -899,9 +902,66 @@ function drawChart(body, pts, opt) {
   };
   const hide = () => { tip.hidden = true; cross.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); };
   const hit = svg.querySelector(".hit");
-  hit.addEventListener("pointermove", show);
-  hit.addEventListener("pointerdown", show);
-  hit.addEventListener("pointerleave", hide);
+  const brush = svg.querySelector(".brush");
+  const toPx = (ev) => { const r = svg.getBoundingClientRect(); return Math.min(m.l + pw, Math.max(m.l, ((ev.clientX - r.left) / r.width) * W)); };
+  // x value under a pixel: nearest point for bars, continuous scale for lines
+  const toX = (px) => bw ? pts[Math.min(pts.length - 1, Math.max(0, Math.floor((px - m.l) / bw)))][0] : xMin + ((px - m.l) / pw) * (xMax - xMin);
+  let drag = null;
+  hit.addEventListener("pointerdown", (ev) => {
+    show(ev);
+    if (!opt.onZoom) return;
+    drag = toPx(ev);
+    hit.setPointerCapture(ev.pointerId);
+  });
+  hit.addEventListener("pointermove", (ev) => {
+    if (drag === null) { show(ev); return; }
+    const px = toPx(ev);
+    brush.setAttribute("x", Math.min(drag, px)); brush.setAttribute("width", Math.abs(px - drag)); brush.setAttribute("visibility", "visible");
+    hide();
+  });
+  hit.addEventListener("pointerup", (ev) => {
+    if (drag === null) return;
+    const px = toPx(ev), start = drag;
+    drag = null;
+    brush.setAttribute("visibility", "hidden");
+    if (Math.abs(px - start) > 10) {
+      const a = toX(Math.min(px, start)), b = toX(Math.max(px, start));
+      if (pts.filter((p) => p[0] >= a && p[0] <= b).length >= 3) opt.onZoom(a, b);
+    }
+  });
+  hit.addEventListener("pointerleave", () => { if (drag === null) hide(); });
+  hit.addEventListener("dblclick", () => opt.onZoom?.(null, null));
+}
+
+// Renders a chart with range buttons and drag-to-zoom. `ranges` are spans in x units (years).
+function zoomable(fig, body, pts, opt) {
+  const span = pts[pts.length - 1][0] - pts[0][0];
+  const ranges = [[0, "All"], [50, "50 yr"], [20, "20 yr"], [10, "10 yr"], [5, "5 yr"], [2, "2 yr"]].filter(([r]) => r === 0 || r < span * 0.8);
+  let controls = fig.querySelector(".zoombar");
+  if (!controls) {
+    controls = document.createElement("div");
+    controls.className = "zoombar";
+    body.before(controls);
+  }
+  const end = pts[pts.length - 1][0];
+  let view = opt.initial && ranges.some(([r]) => r === opt.initial) ? Object.assign([end - opt.initial, end], { preset: opt.initial }) : null; // [x0, x1] or null for everything
+  const render = () => {
+    const shown = view ? pts.filter((p) => p[0] >= view[0] && p[0] <= view[1]) : pts;
+    controls.innerHTML = ranges.map(([r, label]) => {
+      const on = r === 0 ? !view : view && view.preset === r;
+      return `<button type="button" class="zoom-btn" data-range="${r}" aria-pressed="${Boolean(on)}">${label}</button>`;
+    }).join("") + (view && !view.preset ? `<button type="button" class="zoom-btn" data-range="0">Reset zoom</button>` : "") +
+      `<span class="zoom-hint">Drag across the chart to zoom</span>`;
+    drawChart(body, shown, { ...opt, onZoom: (a, b) => { view = a === null ? null : [a, b]; render(); } });
+  };
+  controls.onclick = (e) => {
+    const btn = e.target.closest("[data-range]");
+    if (!btn) return;
+    const r = Number(btn.dataset.range);
+    view = r ? Object.assign([end - r, end], { preset: r }) : null;
+    render();
+  };
+  render();
 }
 
 function chartTable(pts, opt) {
@@ -933,7 +993,7 @@ function renderClimate() {
     const fig = $(`#chart-${c.key}`);
     const [lx, ly] = pts[pts.length - 1];
     $(`#stat-${c.key}`).innerHTML = `<b>${fmt(ly, c.dec, c.signed)}</b> ${esc(c.unit)}<span>${esc(c.label(lx))}</span>`;
-    drawChart(fig.querySelector(".chart-body"), pts, c);
+    zoomable(fig, fig.querySelector(".chart-body"), pts, c);
     fig.querySelector(".chart-foot").innerHTML = chartTable(pts, c);
   }
 }
@@ -1013,10 +1073,157 @@ function initCharts() {
   $("#pubs-topic").innerHTML = TOPICS.map((t) => `<option value="${t.id}">${esc(t.label)}</option>`).join("");
   $("#pubs-topic").addEventListener("change", loadPubs);
   fetchJson("data/climate.json").then((d) => { climateData = d || { series: {} }; renderClimate(); });
+  fetchJson("data/sst_daily.json").then((d) => { sstDaily = d; drawSstDaily(); });
   loadPubs();
   let t;
-  addEventListener("resize", () => { clearTimeout(t); t = setTimeout(() => { if (!$("#view-charts").hidden) { renderClimate(); drawPubs(); } }, 150); });
+  addEventListener("resize", () => { clearTimeout(t); t = setTimeout(() => { if (!$("#view-charts").hidden) { renderClimate(); drawSstDaily(); drawPubs(); } }, 150); });
 }
+
+/* ---------- Daily sea surface temperature, one line per year ---------- */
+let sstDaily = null;
+function drawSstDaily() {
+  const fig = $("#sst-daily"), body = $("#sst-daily-body");
+  const years = Object.keys(sstDaily?.years || {}).sort();
+  if (!years.length) return;
+  fig.hidden = false;
+  const clean = (arr) => arr.map((v, i) => [i + 1, v]).filter(([, v]) => v !== null && v !== undefined && !Number.isNaN(v));
+  const series = years.map((y) => ({ year: y, pts: clean(sstDaily.years[y]) })).filter((s) => s.pts.length);
+  const cur = series[series.length - 1], prev = series[series.length - 2];
+  const clim = sstDaily.climatology?.data ? clean(sstDaily.climatology.data) : [];
+  const W = Math.max(280, body.clientWidth), H = 280;
+  const m = { l: 46, r: 14, t: 12, b: 26 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
+  const all = series.flatMap((s) => s.pts.map((p) => p[1])).concat(clim.map((p) => p[1]));
+  let yMin = Math.min(...all), yMax = Math.max(...all);
+  const yt = niceTicks(yMin - 0.05, yMax + 0.05, 4);
+  yMin = yt[0]; yMax = yt[yt.length - 1];
+  const X = (d) => m.l + ((d - 1) / 365) * pw, Y = (v) => m.t + (1 - (v - yMin) / (yMax - yMin)) * ph;
+  const path = (pts) => pts.map(([d, v], i) => `${i ? "L" : "M"}${X(d).toFixed(1)},${Y(v).toFixed(1)}`).join("");
+  const starts = [1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335];
+  const grid = yt.map((v) => `<line class="grid" x1="${m.l}" x2="${m.l + pw}" y1="${Y(v)}" y2="${Y(v)}"/><text class="tick" x="${m.l - 8}" y="${Y(v) + 4}" text-anchor="end">${v.toFixed(1)}</text>`).join("");
+  const xt = starts.filter((_, i) => pw > 500 || i % 2 === 0).map((d) => `<text class="tick" x="${X(d + 14)}" y="${H - 6}" text-anchor="middle">${MONTHS[starts.indexOf(d)]}</text>`).join("");
+  const past = series.filter((s) => s !== cur && s !== prev).map((s) => `<path class="spag" d="${path(s.pts)}"/>`).join("");
+  const climLine = clim.length ? `<path class="spag-clim" d="${path(clim)}"/>` : "";
+  body.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Daily world sea surface temperature by year">
+      ${grid}${past}${climLine}${prev ? `<path class="spag-prev" d="${path(prev.pts)}"/>` : ""}<path class="line" d="${path(cur.pts)}"/>${xt}
+      <line class="cross" x1="0" x2="0" y1="${m.t}" y2="${m.t + ph}" visibility="hidden"/>
+      <rect class="hit" x="${m.l}" y="${m.t}" width="${pw}" height="${ph}"/>
+    </svg><div class="tip" hidden></div>`;
+  const [ld, lv] = cur.pts[cur.pts.length - 1];
+  const dayName = (d) => { const i = starts.filter((s) => s <= d).length - 1; return `${MONTHS[i]} ${d - starts[i] + 1}`; };
+  $("#sst-daily-stat").innerHTML = `<b>${lv.toFixed(2)}</b> °C<span>${esc(dayName(ld))}, ${cur.year}</span>`;
+  $("#sst-daily-legend").innerHTML = `<span><i class="k-cur"></i>${cur.year}</span>${prev ? `<span><i class="k-prev"></i>${prev.year}</span>` : ""}<span><i class="k-past"></i>${series[0].year}–${(prev || cur).year - 1}</span>${clim.length ? `<span><i class="k-clim"></i>${esc(sstDaily.climatology.name || "Average")}</span>` : ""}`;
+  const svg = body.querySelector("svg"), tip = body.querySelector(".tip"), cross = svg.querySelector(".cross"), hit = svg.querySelector(".hit");
+  const at = (s, d) => s?.pts.find((p) => p[0] === d)?.[1];
+  hit.addEventListener("pointermove", (ev) => {
+    const r = svg.getBoundingClientRect();
+    const d = Math.min(366, Math.max(1, Math.round(((ev.clientX - r.left) / r.width * W - m.l) / pw * 365 + 1)));
+    cross.setAttribute("x1", X(d)); cross.setAttribute("x2", X(d)); cross.setAttribute("visibility", "visible");
+    const rows = [[cur.year, at(cur, d)], [prev?.year, at(prev, d)], ["Average", clim.find((p) => p[0] === d)?.[1]]].filter(([, v]) => v !== undefined);
+    tip.innerHTML = `<span>${esc(dayName(d))}</span>` + rows.map(([k, v]) => `<b>${k}: ${v.toFixed(2)} °C</b>`).join("");
+    tip.hidden = false;
+    tip.style.left = `${Math.min(Math.max((X(d) / W) * r.width, 70), r.width - 70)}px`;
+    tip.style.top = `${(m.t + 10) / H * r.height}px`;
+  });
+  hit.addEventListener("pointerleave", () => { tip.hidden = true; cross.setAttribute("visibility", "hidden"); });
+}
+
+/* ---------- Explorer: climate indices ---------- */
+const INDICES = [
+  { key: "qbo", name: "QBO", title: "Quasi-Biennial Oscillation", sub: "Equatorial zonal wind at 30 hPa, NOAA PSL", unit: "m/s", dec: 1, diverging: true,
+    about: "High above the equator, the stratospheric winds flip between easterly and westerly roughly every 28 months, a rhythm driven by waves rising from below. In 2016 and again in 2020 it skipped a beat for the first time on record. Isaac Held wrote about it in his blog post “Odd recent evolution of the QBO” (see the Blogs tab)." },
+  { key: "nino34", name: "Niño 3.4", title: "Niño 3.4 sea surface temperature anomaly", sub: "Monthly anomaly in the central equatorial Pacific, NOAA PSL", unit: "°C", dec: 2, diverging: true,
+    about: "The ocean thermometer behind El Niño forecasts. Warm anomalies mean El Niño, cold anomalies mean La Niña, and both reshape weather around the world." },
+  { key: "soi", name: "SOI", title: "Southern Oscillation Index", sub: "Tahiti minus Darwin sea level pressure, standardized, NOAA PSL", unit: "", dec: 1, diverging: true,
+    about: "The atmospheric half of ENSO, measured with two barometers on opposite sides of the Pacific. Strongly negative values go with El Niño. Gilbert Walker found it in the 1920s while trying to forecast the Indian monsoon." },
+  { key: "nao", name: "NAO", title: "North Atlantic Oscillation", sub: "Monthly index, NOAA PSL", unit: "", dec: 2, diverging: true,
+    about: "The seesaw of pressure between Iceland and the Azores. Positive phases bring mild, stormy winters to northern Europe; negative phases let cold air spill south." },
+  { key: "ao", name: "AO", title: "Arctic Oscillation", sub: "Monthly index, NOAA PSL", unit: "", dec: 2, diverging: true,
+    about: "How tightly the polar vortex is wound. A negative AO means a wavier jet stream and more cold outbreaks into the mid-latitudes." },
+  { key: "pdo", name: "PDO", title: "Pacific Decadal Oscillation", sub: "Monthly index, NOAA PSL", unit: "", dec: 2, diverging: true,
+    about: "A slow, decades-long pattern of North Pacific sea surface temperature. It was first named in 1997 by a fisheries scientist trying to explain salmon catches." },
+  { key: "amo", name: "AMO", title: "Atlantic Multidecadal Oscillation", sub: "Monthly North Atlantic sea surface temperature anomaly, NOAA PSL", unit: "°C", dec: 2, zero: true, signed: true,
+    about: "Long swings in North Atlantic ocean temperature, linked to Sahel rainfall and Atlantic hurricane activity. Whether it is a true oscillation is still argued about." },
+  { key: "sunspots", name: "Sunspots", title: "Sunspot number", sub: "Monthly mean total sunspot number, SILSO, Royal Observatory of Belgium", unit: "spots", dec: 0, area: true, fromZero: true,
+    about: "The Sun's 11-year cycle, counted since 1749. Solar maximum brings more ultraviolet light, a puffier upper atmosphere and brighter aurora." },
+];
+let indexData = null, indexKey = "qbo";
+function initExplorer() {
+  $("#index-picker").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-index]");
+    if (b) { indexKey = b.dataset.index; renderExplorer(); }
+  });
+  fetchJson("data/indices.json").then((d) => { indexData = d?.series || {}; renderExplorer(); });
+  let t;
+  addEventListener("resize", () => { clearTimeout(t); t = setTimeout(() => { if (!$("#view-explorer").hidden) renderExplorer(); }, 150); });
+}
+function renderExplorer() {
+  if (!indexData) return;
+  const defs = INDICES.filter((d) => indexData[d.key]?.length);
+  if (!defs.length) {
+    $("#index-chart").innerHTML = `<p class="empty"><strong>The indices are on their way.</strong>They are collected every 6 hours; check back shortly.</p>`;
+    return;
+  }
+  if (!defs.some((d) => d.key === indexKey)) indexKey = defs[0].key;
+  const def = defs.find((d) => d.key === indexKey);
+  $("#index-picker").innerHTML = defs.map((d) => `<button type="button" data-index="${d.key}" aria-pressed="${d.key === indexKey}">${esc(d.name)}</button>`).join("");
+  const pts = indexData[def.key];
+  const opt = { ...def, label: monthLabel, signed: def.signed ?? def.diverging, height: 260 };
+  $("#index-title").textContent = def.title;
+  $("#index-sub").textContent = def.sub;
+  const [lx, ly] = pts[pts.length - 1];
+  $("#index-stat").innerHTML = `<b>${fmt(ly, def.dec, opt.signed)}</b> ${esc(def.unit)}<span>${esc(monthLabel(lx))}</span>`;
+  $("#index-about").textContent = def.about;
+  const fig = $("#index-chart");
+  fig.querySelector(".zoombar")?.remove();
+  // Long monthly records are hard to read in full, so start on the last 20 years.
+  zoomable(fig, $("#index-body"), pts, { ...opt, diverging: false, zero: true, initial: 20 });
+}
+
+/* ---------- Blogs ---------- */
+const BLOGS = [
+  { who: "Kerry Emanuel", where: "MIT", title: "Essays in Boston Review", url: "https://www.bostonreview.net/authors/kerry-emanuel/", star: true,
+    note: "The hurricane scientist on climate risk, written with the dry wit of someone who has explained it to Congress more than once. “There is a lot we don't know about climate change, but what we do know should motivate us to action.”" },
+  { who: "Kerry Emanuel", where: "MIT", title: "Climate Science, Risk & Solutions", url: "https://climateprimer.mit.edu/", star: true,
+    note: "His free primer for everyone: the whole climate story, start to finish, in plain language." },
+  { who: "Kerry Emanuel", where: "MIT", title: "10 Years Since Katrina: The Climate Connection Is Clear", url: "https://www.livescience.com/51960-10-years-since-katrina-the-climate-connection-is-clear.html", star: true,
+    note: "An op-ed on what Katrina taught us, from the person who wrote the book on hurricane intensity (literally: Divine Wind)." },
+  { who: "Eric Berger and Matt Lanza", where: "Houston", title: "Space City Weather", url: "https://spacecityweather.com/",
+    note: "Hype-free Houston forecasts with jokes. Their post titles read like “Suntober continues for a bit longer, along with a bit more humidity.”" },
+  { who: "Isaac Held", where: "NOAA GFDL / Princeton", title: "Isaac Held's Blog", url: "https://www.gfdl.noaa.gov/blog/isaac-held/",
+    note: "Numbered posts on climate dynamics from one of the field's sharpest thinkers. Try #72, “Odd recent evolution of the QBO,” then look at the QBO in the Explorer tab." },
+  { who: "Cliff Mass", where: "University of Washington", title: "Cliff Mass Weather Blog", url: "https://cliffmass.blogspot.com/",
+    note: "Pacific Northwest weather explained, with strong opinions and boundless enthusiasm for the next windstorm." },
+  { who: "Daniel Swain", where: "California", title: "Weather West", url: "https://weatherwest.com/",
+    note: "California's droughts, atmospheric rivers and weather whiplash, explained by someone who studies all three." },
+  { who: "Andrew Dessler and Zeke Hausfather", where: "Texas A&M / Berkeley Earth", title: "The Climate Brink", url: "https://www.theclimatebrink.com/",
+    note: "Two climate scientists check the latest numbers, and the latest bad takes, against the data." },
+  { who: "Gavin Schmidt, Michael Mann and others", where: "", title: "RealClimate", url: "https://www.realclimate.org/",
+    note: "Climate science from climate scientists since 2004. Famous for patient, very thorough rebuttals in the comments." },
+  { who: "J. Marshall Shepherd", where: "University of Georgia", title: "Forbes column", url: "https://www.forbes.com/sites/marshallshepherd/",
+    note: "A former AMS president on weather, climate and why your weather app is not lying to you, exactly." },
+  { who: "Jeff Masters and Bob Henson", where: "Yale Climate Connections", title: "Eye on the Storm", url: "https://yaleclimateconnections.org/topic/eye-on-the-storm/",
+    note: "The best play-by-play of every hurricane season, from the founder of Weather Underground and a longtime science writer." },
+];
+function renderBlogs() {
+  $("#blog-list").innerHTML = BLOGS.map((b) => `<li class="blog${b.star ? " star" : ""}">
+      <a href="${b.url}" target="_blank" rel="noopener"><h3>${esc(b.title)}</h3></a>
+      <p class="blog-who">${esc(b.who)}${b.where ? ` · ${esc(b.where)}` : ""}${b.star ? ` <span class="badge">Featured</span>` : ""}</p>
+      <p>${esc(b.note)}</p>
+    </li>`).join("");
+}
+
+/* ---------- Altimeter: scroll position as height through the atmosphere ---------- */
+const LAYERS = [[0, "Troposphere"], [12, "Stratosphere"], [50, "Mesosphere"], [85, "Thermosphere"]];
+function updateAltimeter() {
+  const max = document.documentElement.scrollHeight - innerHeight;
+  const f = max > 0 ? Math.min(1, Math.max(0, scrollY / max)) : 0;
+  const km = Math.round(f * 120);
+  $("#alt-dot").style.bottom = `${f * 100}%`;
+  $("#alt-km").textContent = `${km} km`;
+  $("#alt-layer").textContent = LAYERS.filter(([k]) => km >= k).pop()[1];
+}
+addEventListener("scroll", updateAltimeter, { passive: true });
+addEventListener("resize", updateAltimeter);
 
 /* ---------- Legends ---------- */
 const LEGENDS = [
