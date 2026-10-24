@@ -24,6 +24,8 @@ OUT = Path(__file__).resolve().parent.parent / "data" / "web.json"
 KEEP_DAYS = 30
 MAX_ITEMS = 400
 STREAM_SECONDS = 60
+# Rules the owner asked to remove (a stray "Lapse Rate" rule made in the dashboard, 2026-10-24).
+REMOVE_RULE_IDS = {"982b20c4-32dd-4342-91ee-10f73d2c2be1"}
 RULE_LIST = []  # the tap's rules as found at the start of the run, written out for checking
 
 # Rules are kept in sync with this list, matched by tag. Keep them narrow: every match costs credit.
@@ -63,6 +65,15 @@ def sync_rules(token):
     with call("GET", "/rules", token) as res:
         data = json.load(res)
     existing = data.get("data", data) if isinstance(data, dict) else data
+    for r in list(existing or []):
+        if str(r.get("id")) in REMOVE_RULE_IDS:
+            try:
+                with call("DELETE", f"/rules/{r['id']}", token):
+                    pass
+                existing.remove(r)
+                print(f"removed rule {r['id']}")
+            except urllib.error.HTTPError as exc:
+                print(f"WARN removing rule {r['id']}: {exc.code}", file=sys.stderr)
     by_tag = {r.get("tag"): r for r in existing or []}
     ids = {}
     for tag, value in RULES.items():
