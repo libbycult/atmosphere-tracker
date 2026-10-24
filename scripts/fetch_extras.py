@@ -265,7 +265,7 @@ def sst_daily():
             vals = [round(v, 3) if isinstance(v, (int, float)) else None for v in data]
             if re.fullmatch(r"\d{4}", name):
                 years[name] = vals
-            elif "mean" in name.lower() and climatology is None:
+            elif climatology is None and re.search(r"mean|avg|average|\d{4}\s*[-–]\s*\d{4}", name, re.I) and "σ" not in name and "sigma" not in name.lower():
                 climatology = {"name": name, "data": vals}
         if years:
             return {"years": years, "climatology": climatology}
@@ -273,15 +273,19 @@ def sst_daily():
 
 
 def psl_index(url):
-    pts = []
+    rows, missing = [], None
     for line in fetch(url).decode(errors="replace").splitlines():
         parts = line.split()
-        if len(parts) != 13 or not re.fullmatch(r"\d{4}", parts[0]):
-            continue
+        if len(parts) == 13 and re.fullmatch(r"\d{4}", parts[0]):
+            rows.append(parts)
+        elif rows and missing is None and len(parts) == 1 and first_float(parts[0]) is not None:
+            missing = first_float(parts[0])  # the line after the table gives the file's missing-value code
+    pts = []
+    for parts in rows:
         year = int(parts[0])
         for m, v in enumerate(parts[1:]):
             val = first_float(v)
-            if val is None or val <= -99 or val >= 999:
+            if val is None or val == missing or val <= -99 or val >= 999:
                 continue
             pts.append([round(year + (m + 0.5) / 12, 3), val])
     if not pts:
@@ -329,7 +333,6 @@ def climate():
         ("oni", oni),
         ("seaice", seaice),
         ("sst", lambda: hadsst("annual")),
-        ("sst_monthly", lambda: hadsst("monthly")),
     ]:
         try:
             series[key] = getter()
