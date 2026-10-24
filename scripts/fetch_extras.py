@@ -1,4 +1,5 @@
-"""Fetch the latest Mauna Loa CO2 reading and open federal grant calls into data/.
+"""Fetch the latest Mauna Loa CO2 reading, open federal grant calls and active
+tropical cyclones into data/.
 
 Runs daily in GitHub Actions next to fetch_jobs.py. Standard library only.
 Each part is independent: if one source fails, its existing file is left alone.
@@ -14,6 +15,7 @@ from pathlib import Path
 DATA = Path(__file__).resolve().parent.parent / "data"
 USER_AGENT = "Atmosphere Tracker data collector (+https://github.com/libbycult/atmosphere-tracker)"
 
+STORMS_URL = "https://www.nhc.noaa.gov/CurrentStorms.json"
 CO2_URL = "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_daily_mlo.txt"
 GRANTS_URL = "https://api.grants.gov/v1/api/search2"
 GRANT_KEYWORDS = ["atmospheric", "meteorology", "weather research", "climate research", "air quality research"]
@@ -109,16 +111,38 @@ def grants():
     print(f"Wrote {len(items)} grant calls")
 
 
+def storms():
+    body = json.loads(fetch(STORMS_URL))
+    out = []
+    for st in body.get("activeStorms") or []:
+        out.append({
+            "name": st.get("name", ""),
+            "classification": st.get("classification", ""),
+            "intensity": st.get("intensity", ""),
+            "pressure": st.get("pressure", ""),
+            "latitude": st.get("latitude", ""),
+            "longitude": st.get("longitude", ""),
+            "movementDir": st.get("movementDir", ""),
+            "movementSpeed": st.get("movementSpeed", ""),
+            "lastUpdate": st.get("lastUpdate", ""),
+            "advisoryUrl": (st.get("publicAdvisory") or {}).get("url", ""),
+            "graphicsUrl": (st.get("forecastGraphics") or {}).get("url", ""),
+        })
+    write("storms.json", {"updated": datetime.now(timezone.utc).isoformat(), "storms": out})
+    print(f"Wrote {len(out)} active storms")
+
+
 def main():
     DATA.mkdir(exist_ok=True)
     failures = 0
-    for step in (co2, grants):
+    steps = (co2, grants, storms)
+    for step in steps:
         try:
             step()
         except Exception as exc:
             failures += 1
             print(f"WARN {step.__name__}: {exc}", file=sys.stderr)
-    return 1 if failures == 2 else 0
+    return 1 if failures == len(steps) else 0
 
 
 if __name__ == "__main__":

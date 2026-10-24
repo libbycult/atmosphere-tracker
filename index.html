@@ -25,9 +25,12 @@
 <nav class="tabbar" aria-label="Sections">
   <div class="wrap tabs" role="tablist">
     <a class="tab" role="tab" id="tab-papers" href="#papers" aria-controls="view-papers">Papers</a>
+    <a class="tab" role="tab" id="tab-scientists" href="#scientists" aria-controls="view-scientists">Scientists</a>
+    <a class="tab" role="tab" id="tab-sky" href="#sky" aria-controls="view-sky">Sky Now</a>
     <a class="tab" role="tab" id="tab-jobs" href="#jobs" aria-controls="view-jobs">Jobs</a>
     <a class="tab" role="tab" id="tab-funding" href="#funding" aria-controls="view-funding">Funding</a>
     <a class="tab" role="tab" id="tab-events" href="#events" aria-controls="view-events">Conferences</a>
+    <a class="tab" role="tab" id="tab-resources" href="#resources" aria-controls="view-resources">Data &amp; Programs</a>
     <a class="tab" role="tab" id="tab-social" href="#social" aria-controls="view-social">Social</a>
     <a class="tab" role="tab" id="tab-legends" href="#legends" aria-controls="view-legends">Legends</a>
   </div>
@@ -147,6 +150,48 @@
       <ul class="linkgrid" id="follow-list"></ul>
     </aside>
   </section>
+  <!-- SCIENTISTS -->
+  <section id="view-scientists" class="view" role="tabpanel" aria-labelledby="tab-scientists" hidden>
+    <form id="sci-search" class="searchbar" role="search">
+      <label class="sr-only" for="sq">Search scientists</label>
+      <input id="sq" type="search" placeholder="Search a researcher by name, e.g. Kerry Emanuel" autocomplete="off">
+      <button type="submit" class="btn btn-primary">Search</button>
+    </form>
+    <p class="status" id="sci-status" aria-live="polite"></p>
+    <ol class="results" id="sci-list"></ol>
+    <div id="sci-detail" hidden>
+      <button type="button" class="back" id="sci-back">← Back to results</button>
+      <div class="profile" id="sci-profile"></div>
+      <div class="modes" role="group" aria-label="Sort papers">
+        <button type="button" class="mode" data-sci-sort="cited_by_count:desc" aria-pressed="true">Most cited</button>
+        <button type="button" class="mode" data-sci-sort="publication_date:desc" aria-pressed="false">Newest</button>
+      </div>
+      <p class="status" id="sci-works-status" aria-live="polite"></p>
+      <ol class="results" id="sci-works"></ol>
+      <div class="more"><button class="btn" id="sci-more" hidden>Load more papers</button></div>
+    </div>
+  </section>
+
+  <!-- SKY NOW -->
+  <section id="view-sky" class="view" role="tabpanel" aria-labelledby="tab-sky" hidden>
+    <h2 class="section-title">Active tropical cyclones</h2>
+    <p class="status" id="storm-status" aria-live="polite"></p>
+    <ol class="results" id="storm-list"></ol>
+    <p class="intro small">Atlantic and eastern/central Pacific storms from the <a href="https://www.nhc.noaa.gov" target="_blank" rel="noopener">National Hurricane Center</a>, checked every 6 hours. For the western Pacific and Indian Ocean, see the <a href="https://www.metoc.navy.mil/jtwc/jtwc.html" target="_blank" rel="noopener">Joint Typhoon Warning Center</a>.</p>
+
+    <h2 class="section-title">Latest satellite images</h2>
+    <div class="sat-grid" id="sat-grid"></div>
+    <p class="intro small">GeoColor imagery from NOAA's GOES satellites via <a href="https://www.star.nesdis.noaa.gov/GOES/" target="_blank" rel="noopener">NOAA STAR</a>. Images refresh every 10 minutes while this page is open.</p>
+  </section>
+
+  <!-- DATA & PROGRAMS -->
+  <section id="view-resources" class="view" role="tabpanel" aria-labelledby="tab-resources" hidden>
+    <h2 class="section-title">Datasets</h2>
+    <ul class="reslist" id="dataset-list"></ul>
+    <h2 class="section-title">Graduate programs</h2>
+    <ul class="reslist" id="program-list"></ul>
+  </section>
+
   <!-- LEGENDS -->
   <section id="view-legends" class="view" role="tabpanel" aria-labelledby="tab-legends" hidden>
     <p class="intro">The people who taught us how the sky works. Quotes are sourced where we can; "attributed" means it's widely credited to them but the original is hard to pin down.</p>
@@ -155,7 +200,7 @@
 </main>
 
 <footer class="wrap foot">
-  <p>Papers come live from <a href="https://openalex.org" target="_blank" rel="noopener">OpenAlex</a>, an open index of scholarly work. "Free to read" links are legal open-access copies; subscription papers link to the publisher, where your library login gives access. Jobs come daily from the AGU and Science Careers job boards, funding from <a href="https://www.grants.gov" target="_blank" rel="noopener">Grants.gov</a>, and CO₂ from <a href="https://gml.noaa.gov/ccgg/trends/" target="_blank" rel="noopener">NOAA's Global Monitoring Laboratory</a>.</p>
+  <p>Papers come live from <a href="https://openalex.org" target="_blank" rel="noopener">OpenAlex</a>, an open index of scholarly work. "Free to read" links are legal open-access copies; subscription papers link to the publisher, where your library login gives access. Jobs come daily from the AGU and Science Careers job boards, funding from <a href="https://www.grants.gov" target="_blank" rel="noopener">Grants.gov</a>, storms from the National Hurricane Center, satellite images from NOAA, and CO₂ from <a href="https://gml.noaa.gov/ccgg/trends/" target="_blank" rel="noopener">NOAA's Global Monitoring Laboratory</a>.</p>
 </footer>
 
 <script src="assets/app.js"></script>

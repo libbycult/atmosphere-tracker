@@ -208,3 +208,39 @@ details.abstract p { margin: 6px 0 0; max-width: 68ch; }
   .countdown b { font-size: 1.4rem; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* ---------- Added features ---------- */
+.linkbtn { font: inherit; padding: 0; border: 0; background: none; color: var(--accent); cursor: pointer; }
+.linkbtn:hover { text-decoration: underline; }
+.title-btn { font-family: var(--font-title); font-weight: 600; font-size: inherit; text-align: left; }
+.cite { margin-top: 6px; padding: 12px 14px; background: var(--soft); border-radius: 8px; display: flex; flex-direction: column; gap: 10px; }
+.cite-row { min-width: 0; }
+.cite-head { display: flex; justify-content: space-between; font-size: .82rem; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+.cite pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: .82rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--ink); }
+
+.section-title { margin: 12px 0 0; font-family: var(--font-title); font-weight: 600; font-size: 1.3rem; }
+.section-title:first-child { margin-top: 0; }
+.intro.small { font-size: .88rem; }
+
+.back { align-self: flex-start; font: inherit; font-size: .92rem; padding: 0; border: 0; background: none; color: var(--accent); cursor: pointer; margin-bottom: 8px; }
+#sci-detail { display: flex; flex-direction: column; gap: 14px; }
+.profile h2 { margin: 0; font-family: var(--font-title); font-weight: 600; font-size: 1.6rem; }
+.profile .byline { color: var(--muted); }
+.stats { display: flex; gap: 28px; margin: 12px 0; flex-wrap: wrap; }
+.stats dt { font-size: .8rem; color: var(--muted); }
+.stats dd { margin: 0; font-size: 1.4rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.badge.storm { background: var(--red); color: #fff; }
+
+.sat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.sat { margin: 0; min-width: 0; }
+.sat img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; background: #0b1020; }
+.sat:last-child img { aspect-ratio: 5 / 3; }
+.sat figcaption { margin-top: 6px; font-size: .88rem; color: var(--muted); }
+.sat figcaption b { color: var(--ink); font-weight: 600; margin-right: 4px; }
+
+.reslist { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); column-gap: 28px; }
+.reslist li { display: flex; flex-direction: column; padding-block: 10px; border-top: 1px solid var(--line); min-width: 0; }
+.reslist a { font-weight: 600; text-decoration: none; }
+.reslist a:hover { text-decoration: underline; }
+.reslist span { font-size: .88rem; color: var(--muted); }

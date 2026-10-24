@@ -74,7 +74,7 @@ const state = Object.assign(
 let saved = load("atmo.saved", {}); // OpenAlex id -> work, the viewer's reading list
 
 /* ---------- Tabs ---------- */
-const TABS = ["papers", "jobs", "funding", "events", "social", "legends"];
+const TABS = ["papers", "scientists", "sky", "jobs", "funding", "events", "resources", "social", "legends"];
 const loaded = {};
 function showTab() {
   const hash = location.hash.slice(1);
@@ -85,7 +85,7 @@ function showTab() {
   }
   if (!loaded[tab]) {
     loaded[tab] = true;
-    ({ jobs: loadJobs, funding: loadGrants, events: renderEvents, social: renderSocial, legends: renderLegends })[tab]?.();
+    ({ scientists: initScientists, sky: loadSky, jobs: loadJobs, funding: loadGrants, events: renderEvents, resources: renderResources, social: renderSocial, legends: renderLegends })[tab]?.();
   }
 }
 window.addEventListener("hashchange", showTab);
@@ -121,7 +121,7 @@ function buildUrl() {
     sort,
     per_page: String(PER_PAGE),
     page: String(state.page),
-    select: "id,doi,title,publication_date,authorships,primary_location,open_access,abstract_inverted_index,cited_by_count,type,primary_topic",
+    select: WORK_FIELDS,
   });
   if (state.query) params.set("search", state.query);
   return `${OPENALEX}?${params}`;
@@ -132,6 +132,50 @@ function abstractText(inv) {
   const words = [];
   for (const [word, positions] of Object.entries(inv)) for (const p of positions) words[p] = word;
   return words.join(" ").replace(/\s+/g, " ").trim();
+}
+
+const WORK_FIELDS = "id,doi,title,publication_date,authorships,primary_location,open_access,abstract_inverted_index,cited_by_count,type,primary_topic,biblio";
+
+/* ---------- Citations ---------- */
+function splitName(full) {
+  const parts = full.trim().split(/\s+/);
+  const last = parts.pop() || "";
+  return { last, given: parts };
+}
+function apaCitation(w) {
+  const names = (w.authorships || []).map((a) => a.author?.display_name).filter(Boolean).map((n) => {
+    const { last, given } = splitName(n);
+    return `${last}, ${given.map((g) => g[0] + ".").join(" ")}`.trim().replace(/,$/, "");
+  });
+  let authors = names.length > 20 ? [...names.slice(0, 19), "…", names[names.length - 1]].join(", ") :
+    names.length > 1 ? `${names.slice(0, -1).join(", ")}, & ${names[names.length - 1]}` : (names[0] || "");
+  const year = (w.publication_date || "").slice(0, 4) || "n.d.";
+  const b = w.biblio || {};
+  const journal = w.primary_location?.source?.display_name || "";
+  let tail = journal;
+  if (b.volume) tail += `, ${b.volume}`;
+  if (b.issue) tail += `(${b.issue})`;
+  if (b.first_page) tail += `, ${b.first_page}${b.last_page && b.last_page !== b.first_page ? "–" + b.last_page : ""}`;
+  const doi = w.doi ? ` ${w.doi}` : "";
+  return `${authors} (${year}). ${w.title || "Untitled"}.${tail ? " " + tail + "." : ""}${doi}`;
+}
+function bibtexCitation(w) {
+  const first = (w.authorships || [])[0]?.author?.display_name || "anon";
+  const year = (w.publication_date || "").slice(0, 4);
+  const word = ((w.title || "").match(/[A-Za-z]{4,}/) || ["paper"])[0].toLowerCase();
+  const key = `${splitName(first).last.toLowerCase().replace(/[^a-z]/g, "")}${year}${word}`;
+  const b = w.biblio || {};
+  const fields = [
+    ["title", `{${w.title || ""}}`],
+    ["author", (w.authorships || []).map((a) => a.author?.display_name).filter(Boolean).map((n) => { const { last, given } = splitName(n); return `${last}, ${given.join(" ")}`; }).join(" and ")],
+    ["journal", w.primary_location?.source?.display_name],
+    ["year", year],
+    ["volume", b.volume],
+    ["number", b.issue],
+    ["pages", b.first_page ? `${b.first_page}${b.last_page && b.last_page !== b.first_page ? "--" + b.last_page : ""}` : ""],
+    ["doi", w.doi ? w.doi.replace("https://doi.org/", "") : ""],
+  ].filter(([, v]) => v);
+  return `@article{${key},\n${fields.map(([k, v]) => `  ${k} = {${v}}`).join(",\n")}\n}`;
 }
 
 function authorLine(authorships) {
@@ -164,6 +208,7 @@ function paperItem(w) {
   if (oaUrl) links.push(`<a href="${esc(oaUrl)}" target="_blank" rel="noopener">Read free</a>`);
   links.push(`<a href="${esc(doiUrl)}" target="_blank" rel="noopener">${oaUrl ? "Publisher page" : "Publisher page (library access)"}</a>`);
   links.push(`<a href="${esc(scholar)}" target="_blank" rel="noopener">Google Scholar</a>`);
+  links.push(`<button type="button" class="linkbtn" data-cite="${esc(w.id)}" aria-expanded="false">Cite</button>`);
 
   const isSaved = Boolean(saved[w.id]);
   return `<li class="item" data-id="${esc(w.id)}">
@@ -176,6 +221,7 @@ function paperItem(w) {
     <div class="badges">${badges.join("")}</div>
     ${abs ? `<details class="abstract"><summary>Abstract</summary><p>${esc(abs)}</p></details>` : ""}
     <div class="links">${links.join("")}</div>
+    <div class="cite" hidden></div>
   </li>`;
 }
 
@@ -247,6 +293,36 @@ async function loadPapers({ append = false } = {}) {
   }
 }
 
+function toggleCite(btn) {
+  const item = btn.closest(".item");
+  const box = item.querySelector(".cite");
+  const open = box.hidden;
+  box.hidden = !open;
+  btn.setAttribute("aria-expanded", String(open));
+  if (open && !box.innerHTML) {
+    const w = onScreen.get(btn.dataset.cite) || saved[btn.dataset.cite];
+    if (!w) return;
+    box.innerHTML = [["APA", apaCitation(w)], ["BibTeX", bibtexCitation(w)]].map(([label, text]) => `
+      <div class="cite-row">
+        <div class="cite-head"><span>${label}</span><button type="button" class="linkbtn" data-copy>Copy</button></div>
+        <pre>${esc(text)}</pre>
+      </div>`).join("");
+  }
+}
+async function copyText(btn) {
+  const pre = btn.closest(".cite-row").querySelector("pre");
+  try {
+    await navigator.clipboard.writeText(pre.textContent);
+    btn.textContent = "Copied";
+  } catch {
+    const range = document.createRange();
+    range.selectNodeContents(pre);
+    const sel = getSelection(); sel.removeAllRanges(); sel.addRange(range);
+    btn.textContent = "Selected, press Ctrl+C";
+  }
+  setTimeout(() => { btn.textContent = "Copy"; }, 2000);
+}
+
 function renderTopicChips() {
   $("#topic-chips").innerHTML = TOPICS.map((t) =>
     `<button type="button" class="chip" data-topic="${t.id}" aria-pressed="${t.id === state.topic}">${esc(t.label)}</button>`
@@ -297,7 +373,11 @@ function initPapers() {
     const btn = e.target.closest("[data-mode]");
     if (btn && btn.dataset.mode !== state.mode) setMode(btn.dataset.mode);
   });
-  $("#paper-list").addEventListener("click", (e) => {
+  document.addEventListener("click", (e) => {
+    const citeBtn = e.target.closest("[data-cite]");
+    if (citeBtn) { toggleCite(citeBtn); return; }
+    const copyBtn = e.target.closest("[data-copy]");
+    if (copyBtn) { copyText(copyBtn); return; }
     const btn = e.target.closest("[data-save]");
     if (!btn) return;
     const id = btn.dataset.save;
@@ -490,6 +570,196 @@ function renderSocial() {
       <a href="https://x.com/${handle}" target="_blank" rel="noopener">${esc(name)}</a>
       <span>@${esc(handle)} on X · <a href="https://www.linkedin.com/search/results/companies/?keywords=${encodeURIComponent(name)}" target="_blank" rel="noopener">find on LinkedIn</a></span>
     </li>`).join("");
+}
+
+
+/* ---------- Scientists ---------- */
+const sci = { author: null, sort: "cited_by_count:desc", page: 1, req: 0 };
+
+function initScientists() {
+  $("#sci-search").addEventListener("submit", (e) => { e.preventDefault(); searchScientists($("#sq").value.trim()); });
+  $("#sci-list").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-author]");
+    if (btn) openScientist(JSON.parse(btn.dataset.author));
+  });
+  $("#sci-back").addEventListener("click", () => { $("#sci-detail").hidden = true; $("#sci-list").hidden = false; $("#sci-status").hidden = false; });
+  document.querySelector("[data-sci-sort]").parentElement.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-sci-sort]");
+    if (!btn) return;
+    sci.sort = btn.dataset.sciSort;
+    for (const b of document.querySelectorAll("[data-sci-sort]")) b.setAttribute("aria-pressed", String(b === btn));
+    loadScientistWorks();
+  });
+  $("#sci-more").addEventListener("click", () => { sci.page += 1; loadScientistWorks(true); });
+  $("#sci-list").innerHTML = `<li class="empty"><strong>Look up anyone in the field.</strong>Type a name to see their papers, citation counts and h-index.</li>`;
+}
+
+async function searchScientists(q) {
+  if (!q) return;
+  $("#sci-detail").hidden = true;
+  $("#sci-list").hidden = false;
+  $("#sci-status").hidden = false;
+  $("#sci-status").textContent = "Searching…";
+  try {
+    const params = new URLSearchParams({ search: q, per_page: "12", select: "id,display_name,works_count,cited_by_count,summary_stats,last_known_institutions,topics" });
+    const res = await fetch(`https://api.openalex.org/authors?${params}`);
+    if (!res.ok) throw new Error(`OpenAlex answered ${res.status}`);
+    const data = await res.json();
+    const people = data.results || [];
+    $("#sci-status").textContent = people.length ? `${people.length} matches. Pick the right person.` : "";
+    $("#sci-list").innerHTML = people.length ? people.map((a) => {
+      const inst = a.last_known_institutions?.[0]?.display_name || "";
+      const topic = a.topics?.[0]?.display_name || "";
+      const brief = { id: a.id, name: a.display_name, inst, topic, works: a.works_count, cites: a.cited_by_count, h: a.summary_stats?.h_index };
+      return `<li class="item">
+        <h3 class="item-title"><button type="button" class="linkbtn title-btn" data-author='${esc(JSON.stringify(brief))}'>${esc(a.display_name)}</button></h3>
+        ${inst ? `<p class="byline">${esc(inst)}</p>` : ""}
+        <p class="meta"><span>${(a.works_count || 0).toLocaleString()} papers</span><span>${(a.cited_by_count || 0).toLocaleString()} citations</span>${brief.h != null ? `<span>h-index ${brief.h}</span>` : ""}</p>
+        ${topic ? `<p class="job-summary">Main topic: ${esc(topic)}</p>` : ""}
+      </li>`;
+    }).join("") : `<li class="empty"><strong>No one by that name.</strong>Check the spelling or try just the last name.</li>`;
+  } catch (err) {
+    $("#sci-status").textContent = `Couldn't search (${err.message}). Try again in a moment.`;
+  }
+}
+
+function openScientist(a) {
+  sci.author = a;
+  sci.page = 1;
+  $("#sci-list").hidden = true;
+  $("#sci-status").hidden = true;
+  $("#sci-detail").hidden = false;
+  $("#sci-profile").innerHTML = `
+    <h2>${esc(a.name)}</h2>
+    ${a.inst ? `<p class="byline">${esc(a.inst)}</p>` : ""}
+    <dl class="stats">
+      <div><dt>Papers</dt><dd>${(a.works || 0).toLocaleString()}</dd></div>
+      <div><dt>Citations</dt><dd>${(a.cites || 0).toLocaleString()}</dd></div>
+      ${a.h != null ? `<div><dt>h-index</dt><dd>${a.h}</dd></div>` : ""}
+    </dl>
+    <p class="links"><a href="https://scholar.google.com/scholar?q=${encodeURIComponent('author:"' + a.name + '"')}" target="_blank" rel="noopener">Search on Google Scholar</a><a href="${esc(a.id)}" target="_blank" rel="noopener">OpenAlex profile</a></p>`;
+  loadScientistWorks();
+  scrollTo({ top: 0 });
+}
+
+async function loadScientistWorks(append = false) {
+  const id = ++sci.req;
+  const list = $("#sci-works");
+  if (!append) { list.innerHTML = ""; sci.page = 1; }
+  $("#sci-works-status").textContent = "Loading papers…";
+  $("#sci-more").hidden = true;
+  try {
+    const params = new URLSearchParams({
+      filter: `author.id:${sci.author.id.split("/").pop()}`,
+      sort: sci.sort, per_page: String(PER_PAGE), page: String(sci.page), select: WORK_FIELDS,
+    });
+    const res = await fetch(`${OPENALEX}?${params}`);
+    if (!res.ok) throw new Error(`OpenAlex answered ${res.status}`);
+    const data = await res.json();
+    if (id !== sci.req) return;
+    (data.results || []).forEach((w) => onScreen.set(w.id, w));
+    list.insertAdjacentHTML("beforeend", (data.results || []).map(paperItem).join(""));
+    const total = data.meta?.count || 0;
+    $("#sci-works-status").textContent = `Showing ${list.children.length.toLocaleString()} of ${total.toLocaleString()} papers`;
+    $("#sci-more").hidden = list.children.length >= total;
+  } catch (err) {
+    if (id === sci.req) $("#sci-works-status").textContent = `Couldn't load papers (${err.message}).`;
+  }
+}
+
+/* ---------- Sky Now ---------- */
+const SATELLITES = [
+  { name: "GOES-East full disk", note: "Americas and Atlantic", img: "https://cdn.star.nesdis.noaa.gov/GOES19/ABI/FD/GEOCOLOR/1808x1808.jpg", page: "https://www.star.nesdis.noaa.gov/GOES/fulldisk.php?sat=G19" },
+  { name: "GOES-West full disk", note: "Pacific and western Americas", img: "https://cdn.star.nesdis.noaa.gov/GOES18/ABI/FD/GEOCOLOR/1808x1808.jpg", page: "https://www.star.nesdis.noaa.gov/GOES/fulldisk.php?sat=G18" },
+  { name: "Continental US", note: "GOES-East, GeoColor", img: "https://cdn.star.nesdis.noaa.gov/GOES19/ABI/CONUS/GEOCOLOR/1250x750.jpg", page: "https://www.star.nesdis.noaa.gov/GOES/conus.php?sat=G19" },
+];
+const STORM_TYPES = { TD: "Tropical Depression", STD: "Subtropical Depression", TS: "Tropical Storm", STS: "Subtropical Storm", HU: "Hurricane", MH: "Major Hurricane", PTC: "Potential Tropical Cyclone", PC: "Post-Tropical Cyclone", TY: "Typhoon" };
+
+function saffirSimpson(kt) {
+  if (kt >= 137) return 5;
+  if (kt >= 113) return 4;
+  if (kt >= 96) return 3;
+  if (kt >= 83) return 2;
+  if (kt >= 64) return 1;
+  return 0;
+}
+
+function renderSatellites() {
+  const stamp = Math.floor(Date.now() / 600000); // changes every 10 minutes to bust the cache
+  $("#sat-grid").innerHTML = SATELLITES.map((s) => `<figure class="sat">
+      <a href="${s.page}" target="_blank" rel="noopener"><img src="${s.img}?t=${stamp}" data-fallback="${s.img.replace(/[^/]+$/, "latest.jpg")}?t=${stamp}" alt="Latest ${esc(s.name)} satellite image" loading="lazy"></a>
+      <figcaption><b>${esc(s.name)}</b> ${esc(s.note)}</figcaption>
+    </figure>`).join("");
+  // If a sized image isn't published, fall back to the full-size "latest" file once.
+  for (const img of document.querySelectorAll("#sat-grid img")) {
+    img.addEventListener("error", () => {
+      if (img.dataset.fallback) { img.src = img.dataset.fallback; delete img.dataset.fallback; }
+    });
+  }
+}
+
+async function loadSky() {
+  renderSatellites();
+  setInterval(renderSatellites, 600000);
+  const data = await fetchJson("data/storms.json");
+  const storms = data?.storms || [];
+  const when = data?.updated ? `Checked ${new Date(data.updated).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "";
+  $("#storm-status").textContent = when;
+  $("#storm-list").innerHTML = storms.length ? storms.map((st) => {
+    const kt = Number(st.intensity) || 0;
+    const cat = st.classification === "HU" ? saffirSimpson(kt) : 0;
+    const type = STORM_TYPES[st.classification] || st.classification || "Storm";
+    const mph = Math.round(kt * 1.15078);
+    return `<li class="item">
+      <h3 class="item-title">${st.advisoryUrl ? `<a href="${esc(st.advisoryUrl)}" target="_blank" rel="noopener">` : ""}${esc(type)} ${esc(st.name)}${st.advisoryUrl ? "</a>" : ""}</h3>
+      <div class="badges">${cat ? `<span class="badge storm">Category ${cat}</span>` : ""}</div>
+      <p class="meta"><span>${kt} kt (${mph} mph)</span>${st.pressure ? `<span>${esc(st.pressure)} hPa</span>` : ""}<span>${esc(st.latitude)} ${esc(st.longitude)}</span>${st.movementSpeed ? `<span>Moving ${esc(st.movementDir)}° at ${esc(st.movementSpeed)} mph</span>` : ""}</p>
+      <div class="links">${st.graphicsUrl ? `<a href="${esc(st.graphicsUrl)}" target="_blank" rel="noopener">Forecast cone</a>` : ""}${st.advisoryUrl ? `<a href="${esc(st.advisoryUrl)}" target="_blank" rel="noopener">Public advisory</a>` : ""}</div>
+    </li>`;
+  }).join("") : `<li class="empty"><strong>No active storms right now.</strong>The National Hurricane Center isn't tracking any tropical cyclones in the Atlantic or eastern and central Pacific.</li>`;
+}
+
+/* ---------- Datasets and programs ---------- */
+const DATASETS = [
+  ["ERA5 reanalysis", "ECMWF hourly global reanalysis, 1940 to present", "https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels"],
+  ["MERRA-2", "NASA GMAO reanalysis with aerosols, 1980 to present", "https://gmao.gsfc.nasa.gov/reanalysis/MERRA-2/"],
+  ["GPM IMERG", "Half-hourly global precipitation from satellites", "https://gpm.nasa.gov/data/imerg"],
+  ["CMIP6", "Climate model output from modeling centers worldwide", "https://pcmdi.llnl.gov/CMIP6/"],
+  ["CERES", "Earth's radiation budget from satellites", "https://ceres.larc.nasa.gov/data/"],
+  ["MODIS Atmosphere", "Clouds, aerosols and water vapor from Terra and Aqua", "https://modis-atmosphere.gsfc.nasa.gov/"],
+  ["AERONET", "Ground-based aerosol optical depth network", "https://aeronet.gsfc.nasa.gov/"],
+  ["ARM", "DOE atmospheric observatories: clouds, radiation, aerosols", "https://www.arm.gov/data"],
+  ["IGRA radiosondes", "Global weather balloon soundings", "https://www.ncei.noaa.gov/products/weather-balloon/integrated-global-radiosonde-archive"],
+  ["IBTrACS", "Global tropical cyclone best tracks", "https://www.ncei.noaa.gov/products/international-best-track-archive"],
+  ["HadCRUT5", "Global surface temperature since 1850", "https://www.metoffice.gov.uk/hadobs/hadcrut5/"],
+  ["GOES on AWS", "Full-resolution GOES satellite data, free in the cloud", "https://registry.opendata.aws/noaa-goes/"],
+  ["Mauna Loa CO₂", "NOAA's daily and monthly CO₂ records", "https://gml.noaa.gov/ccgg/trends/"],
+];
+const PROGRAMS = [
+  ["MIT", "Earth, Atmospheric and Planetary Sciences", "https://eaps.mit.edu"],
+  ["Princeton", "Atmospheric and Oceanic Sciences", "https://aos.princeton.edu"],
+  ["University of Washington", "Atmospheric and Climate Science", "https://atmos.uw.edu"],
+  ["Colorado State", "Atmospheric Science", "https://www.atmos.colostate.edu"],
+  ["University of Oklahoma", "School of Meteorology", "https://www.ou.edu/ags/meteorology"],
+  ["Penn State", "Meteorology and Atmospheric Science", "https://www.met.psu.edu"],
+  ["UCLA", "Atmospheric and Oceanic Sciences", "https://atmos.ucla.edu"],
+  ["UW–Madison", "Atmospheric and Oceanic Sciences", "https://www.aos.wisc.edu"],
+  ["University of Utah", "Atmospheric Sciences", "https://atmos.utah.edu"],
+  ["University of Maryland", "Atmospheric and Oceanic Science", "https://aosc.umd.edu"],
+  ["Stony Brook", "School of Marine and Atmospheric Sciences", "https://www.somas.stonybrook.edu"],
+  ["Georgia Tech", "Earth and Atmospheric Sciences", "https://eas.gatech.edu"],
+  ["University of Illinois", "Climate, Meteorology and Atmospheric Sciences", "https://climas.illinois.edu"],
+  ["University of Chicago", "Geophysical Sciences", "https://geosci.uchicago.edu"],
+  ["University of Miami", "Rosenstiel School", "https://earth.miami.edu"],
+  ["UC San Diego", "Scripps Institution of Oceanography", "https://scripps.ucsd.edu"],
+  ["ETH Zurich", "Institute for Atmospheric and Climate Science", "https://iac.ethz.ch"],
+  ["University of Reading", "Department of Meteorology", "https://www.reading.ac.uk/meteorology"],
+  ["McGill", "Atmospheric and Oceanic Sciences", "https://www.mcgill.ca/meteo/"],
+];
+
+function renderResources() {
+  $("#dataset-list").innerHTML = DATASETS.map(([name, note, url]) => `<li><a href="${url}" target="_blank" rel="noopener">${esc(name)}</a><span>${esc(note)}</span></li>`).join("");
+  $("#program-list").innerHTML = PROGRAMS.map(([school, dept, url]) => `<li><a href="${url}" target="_blank" rel="noopener">${esc(school)}</a><span>${esc(dept)}</span></li>`).join("");
 }
 
 /* ---------- Legends ---------- */
