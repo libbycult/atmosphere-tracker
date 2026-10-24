@@ -1141,7 +1141,7 @@ const INDICES = [
     about: "How tightly the polar vortex is wound. A negative AO means a wavier jet stream and more cold outbreaks into the mid-latitudes." },
   { key: "pdo", name: "PDO", title: "Pacific Decadal Oscillation", sub: "Monthly index, NOAA PSL", unit: "", dec: 2, diverging: true,
     about: "A slow, decades-long pattern of North Pacific sea surface temperature. It was first named in 1997 by a fisheries scientist trying to explain salmon catches." },
-  { key: "amo", name: "AMO", title: "Atlantic Multidecadal Oscillation", sub: "Monthly North Atlantic sea surface temperature anomaly, NOAA PSL", unit: "°C", dec: 2, zero: true, signed: true,
+  { key: "amo", name: "AMO", title: "Atlantic Multidecadal Oscillation", sub: "Monthly North Atlantic sea surface temperature anomaly, NOAA PSL (no longer updated after early 2023)", unit: "°C", dec: 2, zero: true, signed: true,
     about: "Long swings in North Atlantic ocean temperature, linked to Sahel rainfall and Atlantic hurricane activity. Whether it is a true oscillation is still argued about." },
   { key: "sunspots", name: "Sunspots", title: "Sunspot number", sub: "Monthly mean total sunspot number, SILSO, Royal Observatory of Belgium", unit: "spots", dec: 0, area: true, fromZero: true,
     about: "The Sun's 11-year cycle, counted since 1749. Solar maximum brings more ultraviolet light, a puffier upper atmosphere and brighter aurora." },
