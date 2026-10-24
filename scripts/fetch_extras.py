@@ -62,7 +62,7 @@ def fetch(url, payload=None):
 
 
 def write(name, obj):
-    (DATA / name).write_text(json.dumps(obj, indent=1, ensure_ascii=False))
+    (DATA / name).write_text(json.dumps(obj, separators=(",", ":"), ensure_ascii=False))
 
 
 def co2():
@@ -347,6 +347,27 @@ def climate():
         print(f"WARN sst daily: {exc}", file=sys.stderr)
 
 
+def summarize():
+    """A small file listing what each data file holds, for checking a deploy at a glance."""
+    out = {}
+    for f in sorted(DATA.glob("*.json")):
+        if f.name == "status.json":
+            continue
+        try:
+            obj = json.loads(f.read_text())
+        except ValueError:
+            out[f.name] = "unreadable"
+            continue
+        if isinstance(obj, dict) and isinstance(obj.get("series"), dict):
+            out[f.name] = {k: [len(v), v[-1] if v else None] for k, v in obj["series"].items()}
+        elif isinstance(obj, dict) and isinstance(obj.get("years"), dict):
+            ys = sorted(obj["years"])
+            out[f.name] = {"years": [ys[0], ys[-1]] if ys else [], "climatology": bool(obj.get("climatology"))}
+        else:
+            out[f.name] = sorted(obj)[:12] if isinstance(obj, dict) else len(obj)
+    return out
+
+
 def main():
     DATA.mkdir(exist_ok=True)
     failures = 0
@@ -357,6 +378,7 @@ def main():
         except Exception as exc:
             failures += 1
             print(f"WARN {step.__name__}: {exc}", file=sys.stderr)
+    write("status.json", summarize())
     return 1 if failures == len(steps) else 0
 
 
