@@ -22,6 +22,8 @@ ONI_URL = "https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt"
 SEAICE_URLS = [  # NSIDC Sea Ice Index, September (annual minimum) extent; version bumps over time
     "https://noaadata.apps.nsidc.org/NOAA/G02135/north/monthly/data/N_09_extent_v4.0.csv",
     "https://noaadata.apps.nsidc.org/NOAA/G02135/north/monthly/data/N_09_extent_v3.0.csv",
+    "https://masie_web.apps.nsidc.org/pub/DATASETS/NOAA/G02135/north/monthly/data/N_09_extent_v4.0.csv",
+    "https://masie_web.apps.nsidc.org/pub/DATASETS/NOAA/G02135/north/monthly/data/N_09_extent_v3.0.csv",
 ]
 STORMS_URL = "https://www.nhc.noaa.gov/CurrentStorms.json"
 CO2_URL = "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_daily_mlo.txt"
