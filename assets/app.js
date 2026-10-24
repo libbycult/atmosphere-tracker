@@ -391,12 +391,13 @@ async function loadGrants() {
   list.innerHTML = grants.map((g) => {
     const closes = g.closeDate ? new Date(g.closeDate + "T12:00:00") : null;
     const days = closes ? Math.ceil((closes - Date.now()) / 86400000) : null;
-    const closeText = closes ? `Closes ${formatDate(g.closeDate)}${days !== null && days >= 0 ? ` (${days} days)` : ""}` : "No close date listed";
+    const rolling = days !== null && days > 3650; // agencies use far-future dates for standing programs
+    const closeText = rolling ? "Rolling deadline" : closes ? `Closes ${formatDate(g.closeDate)}${days >= 0 ? ` (${days} days)` : ""}` : "No close date listed";
     return `<li class="item">
       <h3 class="item-title"><a href="${esc(g.url)}" target="_blank" rel="noopener">${esc(g.title)}</a></h3>
       <p class="byline">${esc(g.agency)}</p>
       <p class="meta"><span class="${days !== null && days <= 30 ? "soon" : ""}">${esc(closeText)}</span><span>${esc(g.number)}</span></p>
-      <div class="badges"><span class="badge">${g.status === "forecasted" ? "Coming soon" : "Open"}</span></div>
+      <div class="badges"><span class="badge">${g.status === "forecasted" ? "Coming soon" : rolling ? "Standing program" : "Open"}</span></div>
     </li>`;
   }).join("");
   const when = data.updated ? ` · updated ${new Date(data.updated).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : "";

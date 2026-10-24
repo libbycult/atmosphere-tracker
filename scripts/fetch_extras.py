@@ -59,6 +59,19 @@ def co2():
     print(f"CO2 {out}")
 
 
+AGENCY_NAMES = [("NOAA", "NOAA"), ("DOC", "NOAA / Commerce"), ("NSF", "National Science Foundation"),
+                ("NASA", "NASA"), ("DOE", "Department of Energy"), ("EPA", "EPA"), ("DOD", "Department of Defense"),
+                ("USDA", "USDA"), ("DOI", "Department of the Interior")]
+
+
+def agency_name(hit):
+    code = (hit.get("agencyCode") or "").upper()
+    for key, name in AGENCY_NAMES:
+        if key in code:
+            return name
+    return hit.get("agencyName") or code
+
+
 def to_iso(mdy):
     try:
         return datetime.strptime(mdy, "%m/%d/%Y").date().isoformat()
@@ -78,14 +91,19 @@ def grants():
             found[h["id"]] = {
                 "title": h.get("title", "").strip(),
                 "number": h.get("number", ""),
-                "agency": h.get("agencyName") or h.get("agencyCode", ""),
+                "agency": agency_name(h),
                 "openDate": to_iso(h.get("openDate")),
                 "closeDate": to_iso(h.get("closeDate")),
                 "status": h.get("oppStatus", ""),
                 "url": f"https://www.grants.gov/search-results-detail/{h['id']}",
             }
-    today = date.today().isoformat()
-    items = [g for g in found.values() if not g["closeDate"] or g["closeDate"] >= today]
+    today = date.today()
+    stale = today.replace(year=today.year - 2).isoformat()
+    items = [
+        g for g in found.values()
+        if (g["closeDate"] and g["closeDate"] >= today.isoformat())
+        or (not g["closeDate"] and (g["openDate"] or "") >= stale)  # undated calls only if recent
+    ]
     items.sort(key=lambda g: g["closeDate"] or "9999")
     write("grants.json", {"updated": datetime.now(timezone.utc).isoformat(), "grants": items})
     print(f"Wrote {len(items)} grant calls")
