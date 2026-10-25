@@ -35,14 +35,14 @@ RULES = {
         'OR title:"atmospheric sciences" OR title:"climate scientist" OR title:"air quality scientist" '
         'OR (title:postdoc* AND (added:atmospheric OR added:meteorology OR added:"climate dynamics"))) '
         'AND (url:*job* OR url:*career* OR url:*position* OR url:*vacanc* OR title:hiring OR title:vacancy '
-        'OR title:"job opening" OR title:position) AND language:en'
+        'OR title:"job opening" OR title:position) AND language:en AND dr:[30 TO 100]'
     ),
     "research": (
         '(title:hurricane OR title:typhoon OR title:aerosol* OR title:"jet stream" OR title:monsoon '
         'OR title:"atmospheric river" OR title:stratosphere* OR title:ozone OR title:"cloud seeding" '
         'OR title:"polar vortex" OR title:"climate model" OR title:"extreme heat" OR title:thunderstorm*) '
         'AND (added:"published in" OR added:"journal" OR added:"study" OR added:"researchers") '
-        'AND page_category:"/News" AND language:en AND recent:7d'
+        'AND page_category:"/News" AND language:en AND recent:7d AND dr:[60 TO 100]'
     ),
     "preprints": (
         '(domain:eartharxiv.org OR domain:essopenarchive.org OR domain:egusphere.copernicus.org) '
@@ -135,6 +135,28 @@ def employer_from(title, domain):
     return m.group(1).strip() if m else domain
 
 
+SEEN_KEYS = set()  # shapes of update events, written out for checking how matches map to rules
+SEEN_QUERY_IDS = set()
+JOB_WORDS = re.compile(r"\b(jobs?|hiring|careers?|positions?|vacanc\w*|postdoc\w*|apply)\b", re.I)
+
+
+def tag_for(update, tags, doc):
+    SEEN_KEYS.update(update.keys())
+    for key in ("query_id", "rule_id", "queryId", "ruleId"):
+        if update.get(key) is not None:
+            SEEN_QUERY_IDS.add(str(update[key]))
+            if str(update[key]) in tags:
+                return tags[str(update[key])]
+    if update.get("tag") in RULES:
+        return update["tag"]
+    # Fall back to reading the page itself when the rule can't be identified.
+    url = doc.get("url", "")
+    domain = (urllib.parse.urlsplit(url).hostname or "").removeprefix("www.")
+    if domain in ("eartharxiv.org", "essopenarchive.org", "egusphere.copernicus.org"):
+        return "preprints"
+    return "jobs" if JOB_WORDS.search(f"{doc.get('title', '')} {url}") else "research"
+
+
 def to_item(update, tags):
     doc = update.get("document") or {}
     url, title = doc.get("url"), (doc.get("title") or "").strip()
@@ -143,7 +165,7 @@ def to_item(update, tags):
     domain = urllib.parse.urlsplit(url).hostname or ""
     domain = domain.removeprefix("www.")
     item = {
-        "tag": tags.get(str(update.get("query_id")), "other"),
+        "tag": tag_for(update, tags, doc),
         "url": url,
         "title": title[:200],
         "domain": domain,
@@ -180,13 +202,18 @@ def main():
     print(f"{len(fresh)} matches from the last 24 hours")
     cutoff = (datetime.now(timezone.utc) - timedelta(days=KEEP_DAYS)).isoformat()
     merged, seen = [], set()
-    for item in sorted(fresh + previous(), key=lambda i: i.get("matched", ""), reverse=True):
-        if item["url"] in seen or item.get("matched", "") < cutoff:
+    # Older runs saved unmatched pages as "other"; those came from a rule that no longer exists.
+    old = [i for i in previous() if i.get("tag") in RULES]
+    for item in sorted(fresh + old, key=lambda i: i.get("matched", ""), reverse=True):
+        key = re.sub(r"\W+", " ", item["title"].lower()).strip()  # the same story often appears under many URLs
+        if item["url"] in seen or key in seen or item.get("matched", "") < cutoff:
             continue
-        seen.add(item["url"])
+        seen.update((item["url"], key))
         merged.append(item)
     OUT.parent.mkdir(exist_ok=True)
-    OUT.write_text(json.dumps({"updated": datetime.now(timezone.utc).isoformat(), "rules": RULE_LIST, "items": merged[:MAX_ITEMS]},
+    OUT.write_text(json.dumps({"updated": datetime.now(timezone.utc).isoformat(), "rules": RULE_LIST,
+                              "seen": {"update_keys": sorted(SEEN_KEYS), "query_ids": sorted(SEEN_QUERY_IDS)[:20]},
+                              "items": merged[:MAX_ITEMS]},
                               separators=(",", ":"), ensure_ascii=False))
     print(f"Wrote {len(merged[:MAX_ITEMS])} web items")
     return 0
