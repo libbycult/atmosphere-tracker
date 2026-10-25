@@ -32,6 +32,9 @@ jobs:
         continue-on-error: true
         env:
           FIREHOSE_TAP_TOKEN: ${{ secrets.FIREHOSE_TAP_TOKEN }}
+      - name: Download scientist photos
+        run: python scripts/fetch_faces.py
+        continue-on-error: true
       - name: Collect CO2, funding calls and active storms
         run: python scripts/fetch_extras.py
         continue-on-error: true

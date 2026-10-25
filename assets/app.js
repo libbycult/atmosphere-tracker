@@ -1421,65 +1421,16 @@ function renderLegends() {
     </li>`).join("");
 }
 
-/* ---------- Faces: photos from Wikipedia (free-licensed images only) ---------- */
-const FACES = [
-  ["Edward Norton Lorenz", "Edward Lorenz", "Chaos, butterflies"],
-  ["Ted Fujita", "Ted Fujita", "Mr. Tornado"],
-  ["Joanne Simpson", "Joanne Simpson", "Hot towers"],
-  ["Jule Gregory Charney", "Jule Charney", "Quasi-geostrophic everything"],
-  ["Carl-Gustaf Rossby", "Carl-Gustaf Rossby", "Rossby waves"],
-  ["Vilhelm Bjerknes", "Vilhelm Bjerknes", "Founded modern forecasting"],
-  ["Lewis Fry Richardson", "Lewis Fry Richardson", "Forecast by hand, in a war"],
-  ["Charles David Keeling", "Charles David Keeling", "The Keeling Curve"],
-  ["Syukuro Manabe", "Syukuro Manabe", "Nobel for climate models"],
-  ["Susan Solomon", "Susan Solomon", "Solved the ozone hole"],
-  ["F. Sherwood Rowland", "F. Sherwood Rowland", "CFCs and ozone"],
-  ["Mario J. Molina", "Mario Molina", "CFCs and ozone"],
-  ["Paul J. Crutzen", "Paul Crutzen", "Coined the Anthropocene"],
-  ["Kerry Emanuel", "Kerry Emanuel", "Hurricane intensity"],
-  ["Svante Arrhenius", "Svante Arrhenius", "CO₂ warming, 1896"],
-  ["John Tyndall", "John Tyndall", "Measured the greenhouse effect, 1859"],
-  ["Joseph Fourier", "Joseph Fourier", "Discovered the greenhouse effect"],
-  ["Luke Howard (meteorologist)", "Luke Howard", "Named the clouds"],
-  ["Francis Beaufort", "Francis Beaufort", "The wind scale"],
-  ["Robert FitzRoy", "Robert FitzRoy", "Coined “forecast”"],
-  ["Gilbert Walker (physicist)", "Gilbert Walker", "Found the Southern Oscillation"],
-  ["Milutin Milanković", "Milutin Milanković", "Ice age cycles"],
-  ["John von Neumann", "John von Neumann", "Backed the first computer forecast"],
-  ["Warren M. Washington", "Warren Washington", "Pioneer of climate models"],
-  ["James Hansen", "James Hansen", "1988 climate testimony"],
-  ["Anders Celsius", "Anders Celsius", "Yes, that Celsius"],
-];
+/* ---------- Faces: free-licensed photos, downloaded from Wikipedia by the Action ---------- */
 async function loadFaces() {
   const list = $("#face-list");
   list.innerHTML = `<li class="status">Loading photos…</li>`;
-  const params = new URLSearchParams({
-    action: "query", format: "json", origin: "*", redirects: "1", prop: "pageimages|info", inprop: "url",
-    piprop: "thumbnail|original|name", pithumbsize: "480", pilicense: "free", titles: FACES.map((f) => f[0]).join("|"),
-  });
-  try {
-    const res = await fetch(`https://en.wikipedia.org/w/api.php?${params}`);
-    if (!res.ok) throw new Error(`Wikipedia answered ${res.status}`);
-    const q = (await res.json()).query || {};
-    // Map each requested title through normalization and redirects to its page.
-    const hop = (t, arr) => (arr || []).find((x) => x.from === t)?.to || t;
-    const pages = Object.values(q.pages || {});
-    const cards = FACES.map(([title, name, known]) => {
-      const t = hop(hop(title, q.normalized), q.redirects);
-      const pg = pages.find((x) => x.title === t);
-      if (!pg?.thumbnail) return "";
-      const full = pg.original?.source || pg.thumbnail.source;
-      const credit = pg.pageimage ? `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(pg.pageimage)}` : pg.fullurl;
-      return `<li class="face">
-          <a href="${esc(full)}" target="_blank" rel="noopener"><img src="${esc(pg.thumbnail.source)}" alt="${esc(name)}" loading="lazy"></a>
-          <b>${esc(name)}</b><span>${esc(known)}</span>
-          <a class="credit" href="${esc(credit)}" target="_blank" rel="noopener">Photo credit and license</a>
-        </li>`;
-    }).join("");
-    list.innerHTML = cards || `<li class="status">No photos found.</li>`;
-  } catch (err) {
-    list.innerHTML = `<li class="status error">Couldn't load photos (${esc(err.message)}).</li>`;
-  }
+  const faces = (await fetchJson("data/faces.json"))?.faces || [];
+  list.innerHTML = faces.length ? faces.map((f) => `<li class="face">
+      <a href="${esc(f.full)}" target="_blank" rel="noopener"><img src="${esc(f.src)}" alt="${esc(f.name)}" loading="lazy"></a>
+      <b>${esc(f.name)}</b><span>${esc(f.caption)}</span>
+      <a class="credit" href="${esc(f.credit)}" target="_blank" rel="noopener">Photo credit and license</a>
+    </li>`).join("") : `<li class="status">Photos are on their way; check back in a few minutes.</li>`;
 }
 
 /* ---------- CO2 ---------- */
