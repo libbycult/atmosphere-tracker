@@ -1277,12 +1277,6 @@ const INDICES = [
     about: "The Southern Hemisphere's version of the AO: how tightly the westerlies hug Antarctica. The ozone hole pushed it positive in summer for decades." },
   { key: "tna", name: "TNA", title: "Tropical North Atlantic index", sub: "Sea surface temperature anomaly off West Africa and the Caribbean, NOAA PSL", unit: "°C", dec: 2, zero: true, signed: true,
     about: "Warm water here is hurricane fuel. Seasonal hurricane outlooks lean heavily on it." },
-  { key: "sahel", name: "Sahel rain", title: "Sahel rainfall", sub: "Monthly rainfall anomaly over the Sahel, NOAA PSL", unit: "", dec: 1, zero: true, signed: true,
-    about: "The 1970s–80s Sahel drought is one of the largest rainfall changes ever measured, and helped spark research into how ocean temperatures drive rainfall." },
-  { key: "india", name: "Indian monsoon", title: "Central Indian rainfall", sub: "Monthly rainfall, NOAA PSL", unit: "", dec: 0, area: true, fromZero: true,
-    about: "The summer monsoon delivers most of India's rain in four months. Zoom into a few years to see the June–September spike." },
-  { key: "solar", name: "Solar flux", title: "Solar radio flux at 10.7 cm", sub: "Monthly mean, NOAA PSL", unit: "sfu", dec: 0, area: true, fromZero: true,
-    about: "A radio-wavelength measure of solar activity that tracks the sunspot cycle closely. It is used to model how much the upper atmosphere puffs up." },
   { key: "sunspots", name: "Sunspots", title: "Sunspot number", sub: "Monthly mean total sunspot number, SILSO, Royal Observatory of Belgium", unit: "spots", dec: 0, area: true, fromZero: true,
     about: "The Sun's 11-year cycle, counted since 1749. Solar maximum brings more ultraviolet light, a puffier upper atmosphere and brighter aurora." },
 ];

@@ -68,9 +68,6 @@ PSL_INDICES = {
     "ea": "https://psl.noaa.gov/data/correlation/ea.data",
     "aao": "https://psl.noaa.gov/data/correlation/aao.data",
     "tna": "https://psl.noaa.gov/data/correlation/tna.data",
-    "sahel": "https://psl.noaa.gov/data/correlation/sahelrain.data",
-    "india": "https://psl.noaa.gov/data/correlation/indiamon.data",
-    "solar": "https://psl.noaa.gov/data/correlation/solar.data",
 }
 SUNSPOT_URL = "https://www.sidc.be/SILSO/INFO/snmtotcsv.php"
 STORMS_URL = "https://www.nhc.noaa.gov/CurrentStorms.json"
