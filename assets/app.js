@@ -1444,7 +1444,8 @@ function renderLegends() {
 async function loadFaces() {
   const list = $("#face-list");
   list.innerHTML = `<li class="status">Loading photos…</li>`;
-  const faces = (await fetchJson("data/faces.json"))?.faces || [];
+  const [auto, manual] = await Promise.all([fetchJson("data/faces.json"), fetchJson("data/faces-manual.json")]);
+  const faces = [...(auto?.faces || []), ...(manual?.faces || [])];
   // By special request, Kerry Emanuel goes last and is bigger than everyone else.
   faces.sort((a, b) => (a.name === "Kerry Emanuel") - (b.name === "Kerry Emanuel"));
   list.innerHTML = faces.length ? faces.map((f) => f.name === "Kerry Emanuel" ? `<li class="face giant">
@@ -1454,7 +1455,7 @@ async function loadFaces() {
     </li>` : `<li class="face">
       <a href="${esc(f.full)}" target="_blank" rel="noopener"><img src="${esc(f.src)}" alt="${esc(f.name)}" loading="lazy"></a>
       <b>${esc(f.name)}</b>
-      <a class="credit" href="${esc(f.credit)}" target="_blank" rel="noopener">Photo credit and license</a>
+      ${f.credit ? `<a class="credit" href="${esc(f.credit)}" target="_blank" rel="noopener">Photo credit and license</a>` : ""}
     </li>`).join("") : `<li class="status">Photos are on their way; check back in a few minutes.</li>`;
 }
 
