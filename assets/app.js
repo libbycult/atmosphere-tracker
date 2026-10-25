@@ -1430,11 +1430,11 @@ async function loadFaces() {
   faces.sort((a, b) => (a.name === "Kerry Emanuel") - (b.name === "Kerry Emanuel"));
   list.innerHTML = faces.length ? faces.map((f) => f.name === "Kerry Emanuel" ? `<li class="face giant">
       <a href="${esc(f.full)}" target="_blank" rel="noopener"><img src="${esc(f.full)}" onerror="this.onerror=null;this.src='${esc(f.src)}'" alt="${esc(f.name)}"></a>
-      <b>${esc(f.name)}</b><span>${esc(f.caption)}</span>
+      <b>${esc(f.name)}</b>
       <a class="credit" href="${esc(f.credit)}" target="_blank" rel="noopener">Photo credit and license</a>
     </li>` : `<li class="face">
       <a href="${esc(f.full)}" target="_blank" rel="noopener"><img src="${esc(f.src)}" alt="${esc(f.name)}" loading="lazy"></a>
-      <b>${esc(f.name)}</b><span>${esc(f.caption)}</span>
+      <b>${esc(f.name)}</b>
       <a class="credit" href="${esc(f.credit)}" target="_blank" rel="noopener">Photo credit and license</a>
     </li>`).join("") : `<li class="status">Photos are on their way; check back in a few minutes.</li>`;
 }
