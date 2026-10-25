@@ -114,6 +114,15 @@ function showTab() {
 }
 window.addEventListener("hashchange", showTab);
 
+/* ---------- Papers: count of filters that differ from the defaults ---------- */
+function updateFilterCount() {
+  const box = $("#filter-box");
+  if (!box) return;
+  const n = [...box.querySelectorAll("select")].filter((el) => el.selectedIndex > 0).length + box.querySelectorAll("input[type=checkbox]:checked").length;
+  $("#filter-count").textContent = n ? n : "";
+}
+document.addEventListener("change", (e) => { if (e.target.closest("#filter-box")) updateFilterCount(); });
+
 /* ---------- Dropdown menus ---------- */
 function closeMenus(except) {
   for (const m of document.querySelectorAll(".menu")) {
@@ -306,9 +315,7 @@ function paperItem(w) {
   const pct = w.citation_normalized_percentile;
   if (pct?.is_in_top_1_percent) badges.push(`<span class="badge top" title="Among the 1% most-cited papers in its field and year">Top 1% in field</span>`);
   else if (pct?.is_in_top_10_percent) badges.push(`<span class="badge top" title="Among the 10% most-cited papers in its field and year">Top 10% in field</span>`);
-  badges.push(oaUrl ? `<span class="badge free">Free to read</span>` : `<span class="badge paywall">Subscription</span>`);
   if (w.type === "preprint") badges.push(`<span class="badge">Preprint</span>`);
-  if (w.primary_topic?.display_name) badges.push(`<span class="badge">${esc(w.primary_topic.display_name)}</span>`);
 
   const links = [];
   if (oaUrl) links.push(`<a href="${esc(oaUrl)}" target="_blank" rel="noopener">Read free</a>`);
@@ -316,6 +323,12 @@ function paperItem(w) {
   links.push(`<a href="${esc(scholar)}" target="_blank" rel="noopener">Google Scholar</a>`);
   links.push(`<button type="button" class="linkbtn" data-cite="${esc(w.id)}" aria-expanded="false">Cite</button>`);
 
+  // Secondary facts live inside the expandable section to keep each result short.
+  const extra = [
+    w.primary_topic?.display_name ? `Topic: ${esc(w.primary_topic.display_name)}` : "",
+    w.countries_distinct_count > 1 ? `Authors from ${w.countries_distinct_count} countries and ${w.institutions_distinct_count} institutions` : "",
+    w.funders?.length ? `Funded by ${esc(w.funders.slice(0, 4).map((f) => f.display_name).join(", "))}${w.funders.length > 4 ? ` and ${w.funders.length - 4} more` : ""}` : "",
+  ].filter(Boolean).map((t) => `<p class="detail">${t}</p>`).join("");
   const isSaved = Boolean(saved[w.id]);
   return `<li class="item" data-id="${esc(w.id)}">
     <button type="button" class="save" data-save="${esc(w.id)}" aria-pressed="${isSaved}" aria-label="${isSaved ? "Remove from reading list" : "Save to reading list"}" title="${isSaved ? "Remove from reading list" : "Save to reading list"}">
@@ -323,10 +336,9 @@ function paperItem(w) {
     </button>
     <h3 class="item-title"><a href="${esc(oaUrl || doiUrl)}" target="_blank" rel="noopener">${esc(title)}</a></h3>
     ${w.authorships?.length ? `<p class="byline">${esc(authorLine(w.authorships))}</p>` : ""}
-    <p class="meta">${source ? `<span class="journal">${esc(source)}</span>` : ""}<span>${esc(formatDate(w.publication_date))}</span><span>${w.cited_by_count || 0} citations</span>${citesPerMonth(w) >= 0.5 ? `<span class="velocity" title="Citations per month since publication">${citesPerMonth(w).toFixed(1)} per month</span>` : ""}${w.countries_distinct_count > 1 ? `<span title="Countries and institutions on the author list">${w.countries_distinct_count} countries · ${w.institutions_distinct_count} institutions</span>` : ""}</p>
-    ${w.funders?.length ? `<p class="funders">Funded by ${esc(w.funders.slice(0, 4).map((f) => f.display_name).join(", "))}${w.funders.length > 4 ? ` and ${w.funders.length - 4} more` : ""}</p>` : ""}
-    <div class="badges">${badges.join("")}</div>
-    ${abs ? `<details class="abstract"><summary>Abstract</summary><p>${esc(abs)}</p></details>` : ""}
+    <p class="meta">${source ? `<span class="journal">${esc(source)}</span>` : ""}<span>${esc(formatDate(w.publication_date))}</span><span>${w.cited_by_count || 0} citations</span>${state.mode === "trending" && citesPerMonth(w) >= 0.5 ? `<span class="velocity" title="Citations per month since publication">${citesPerMonth(w).toFixed(1)} per month</span>` : ""}</p>
+    ${badges.length ? `<div class="badges">${badges.join("")}</div>` : ""}
+    ${abs || extra ? `<details class="abstract"><summary>${abs ? "Abstract" : "Details"}</summary>${abs ? `<p>${esc(abs)}</p>` : ""}${extra}</details>` : ""}
     <div class="links">${links.join("")}</div>
     <div class="cite" hidden></div>
   </li>`;
@@ -357,7 +369,7 @@ function setMode(mode) {
   for (const b of document.querySelectorAll("[data-mode]")) b.setAttribute("aria-pressed", String(b.dataset.mode === mode));
   const browsing = mode !== "saved";
   $("#topic-chips").hidden = !browsing;
-  $("#paper-filters").hidden = !browsing;
+  $("#filter-box").hidden = !browsing;
   $("#paper-search").hidden = !browsing;
   $("#sort-wrap").hidden = mode === "trending";
   $("#when").closest("label").hidden = mode === "trending";
@@ -663,7 +675,7 @@ async function renderEvents() {
     return `<li class="event${past ? " past" : ""}">
       <div class="countdown">${counter}</div>
       <div>
-        <h3>${esc(ev.name)}${ev.kind === "specialist" ? ` <span class="badge">Specialist</span>` : ""}</h3>
+        <h3>${esc(ev.name)}</h3>
         <p>${esc(fmtRange(ev.start, ev.end))} · ${esc(ev.city)}</p>
         ${deadlines ? `<p>${deadlines}</p>` : ""}
         <div class="links"><a href="${esc(ev.url)}" target="_blank" rel="noopener">Meeting site</a></div>
@@ -1548,6 +1560,7 @@ async function loadCo2() {
 
 loadCo2();
 initPapers();
+updateFilterCount();
 loadWebResearch();
 initJobs();
 showTab();

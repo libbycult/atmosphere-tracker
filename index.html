@@ -89,6 +89,8 @@
 
     <div class="chips" id="topic-chips" aria-label="Topics"></div>
 
+    <details class="filter-box" id="filter-box">
+    <summary>Filters <span class="count" id="filter-count"></span></summary>
     <div class="filters" id="paper-filters">
       <label>Journal
         <select id="journal"></select>
@@ -130,16 +132,17 @@
       <label class="check"><input type="checkbox" id="top-only"> Top 10% in field</label>
       <label class="check"><input type="checkbox" id="intl-only"> International teams</label>
     </div>
-
-    <aside class="panel webfind" id="web-research" hidden>
-      <h2>Spotted on the web</h2>
-      <p>Research news and new preprints, caught by a live crawl of the web in the last few days.</p>
-      <ol class="weblist" id="web-research-list"></ol>
-    </aside>
+    </details>
 
     <p class="status" id="paper-status" aria-live="polite"></p>
     <ol class="results" id="paper-list"></ol>
     <div class="more"><button class="btn" id="paper-more" hidden>Load more papers</button></div>
+
+    <aside class="webfind" id="web-research" hidden>
+      <h2>Spotted on the web</h2>
+      <p>Research news and new preprints from a live crawl of the web.</p>
+      <ol class="weblist" id="web-research-list"></ol>
+    </aside>
   </section>
 
   <!-- JOBS -->

@@ -436,3 +436,22 @@ details.abstract p { margin: 6px 0 0; max-width: 68ch; }
 main { padding-top: 12px; }
 .linkish { font: inherit; font-size: .85rem; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 .chart-foot { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
+
+/* ---------- Cleaner layout ---------- */
+#topic-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px;
+  -webkit-mask-image: linear-gradient(to right, #000 92%, transparent); mask-image: linear-gradient(to right, #000 92%, transparent); }
+#topic-chips::-webkit-scrollbar { display: none; }
+#topic-chips .chip { flex: none; }
+.filter-box > summary { cursor: pointer; width: fit-content; font-size: .9rem; font-weight: 600; color: var(--muted); list-style: none; display: inline-flex; align-items: center; gap: 6px; }
+.filter-box > summary::-webkit-details-marker { display: none; }
+.filter-box > summary::before { content: ""; width: 7px; height: 7px; border-right: 1.6px solid currentColor; border-bottom: 1.6px solid currentColor; transform: rotate(-45deg); transition: transform .15s; margin-right: 2px; }
+.filter-box[open] > summary::before { transform: rotate(45deg); }
+.filter-box > summary:hover { color: var(--ink); }
+.filter-box .count:empty { display: none; }
+.filter-box .count { background: var(--accent); color: var(--accent-ink); border-radius: 999px; padding: 0 7px; font-size: .75rem; }
+.filter-box .filters { margin-top: 12px; }
+.abstract .detail { margin: 6px 0 0; font-size: .88rem; color: var(--muted); }
+.webfind { margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--line); }
+.webfind h2 { margin: 0 0 2px; font-size: 1rem; }
+.webfind p { margin: 0; font-size: .88rem; color: var(--muted); }
+.altimeter { opacity: .55; }
