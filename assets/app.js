@@ -111,7 +111,18 @@ function showTab() {
     ({ scientists: initScientists, sky: loadSky, charts: initCharts, jobs: loadJobs, funding: loadGrants, events: renderEvents, resources: renderResources, social: renderSocial, legends: renderLegends, explorer: initExplorer, blogs: renderBlogs, faces: loadFaces, map: initMap })[tab]?.();
   }
   updateAltimeter();
+  countView(tab);
 }
+
+// Visitor counts go to GoatCounter (no cookies). Each tab counts as its own page; the counter
+// script loads async, so a view that happens before it arrives is sent once the page has loaded.
+let pendingView = null;
+function countView(tab) {
+  const view = { path: tab === "papers" ? "/" : `/${tab}`, title: document.title };
+  if (window.goatcounter?.count) window.goatcounter.count(view);
+  else pendingView = view;
+}
+addEventListener("load", () => { if (pendingView && window.goatcounter?.count) window.goatcounter.count(pendingView); pendingView = null; });
 window.addEventListener("hashchange", showTab);
 
 /* ---------- Papers: count of filters that differ from the defaults ---------- */
