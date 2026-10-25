@@ -1,5 +1,5 @@
 {
-  "_help": "Add or edit meetings here. Dates are YYYY-MM-DD. deadlines is optional; past deadlines hide themselves.",
+  "_help": "Add or edit meetings here. Dates are YYYY-MM-DD. deadlines is optional; past deadlines hide themselves. kind is major or specialist.",
   "events": [
     {
       "name": "AGU Fall Meeting 2026 (AGU26)",
@@ -7,7 +7,8 @@
       "end": "2026-12-11",
       "city": "San Francisco, CA",
       "url": "https://www.agu.org/Fall-Meeting",
-      "deadlines": []
+      "deadlines": [],
+      "kind": "major"
     },
     {
       "name": "107th AMS Annual Meeting",
@@ -15,7 +16,8 @@
       "end": "2027-01-14",
       "city": "Denver, CO",
       "url": "https://annual.ametsoc.org/2027/",
-      "deadlines": []
+      "deadlines": [],
+      "kind": "major"
     },
     {
       "name": "EGU General Assembly 2027",
@@ -23,7 +25,121 @@
       "end": "2027-04-09",
       "city": "Vienna, Austria",
       "url": "https://www.egu27.eu/",
-      "deadlines": []
+      "deadlines": [],
+      "kind": "major"
+    },
+    {
+      "name": "AAAR 44th Annual Conference (aerosol research)",
+      "start": "2026-10-26",
+      "end": "2026-10-30",
+      "city": "Pasadena, CA",
+      "url": "https://www.aaar.org/meetings-events/meetings-and-events/",
+      "deadlines": [],
+      "kind": "specialist"
+    },
+    {
+      "name": "ECMWF Workshop on Machine Learning for Land and Hydrology",
+      "start": "2026-11-03",
+      "end": "2026-11-05",
+      "city": "ECMWF (details on site)",
+      "url": "https://events.ecmwf.int/event/530/",
+      "deadlines": [],
+      "kind": "specialist"
+    },
+    {
+      "name": "NWP-SAF Workshop: satellite cloud and precipitation observations for forecasting",
+      "start": "2026-11-09",
+      "end": "2026-11-12",
+      "city": "ECMWF (details on site)",
+      "url": "https://events.ecmwf.int/event/547/",
+      "deadlines": [],
+      "kind": "specialist"
+    },
+    {
+      "name": "ECMWF Workshop on Software Strategies for Sustainable Physical Modelling",
+      "start": "2026-11-23",
+      "end": "2026-11-27",
+      "city": "ECMWF (details on site)",
+      "url": "https://events.ecmwf.int/event/529/",
+      "deadlines": [],
+      "kind": "specialist"
+    },
+    {
+      "name": "26th Symposium on Boundary Layers and Turbulence (at AMS 2027)",
+      "start": "2027-01-10",
+      "end": "2027-01-14",
+      "city": "Denver, CO",
+      "url": "https://annual.ametsoc.org/2027/program-events/conferences-and-symposia/26th-symposium-on-boundary-layers-and-turbulence/",
+      "deadlines": [],
+      "kind": "specialist"
+    },
+    {
+      "name": "25th Conference on Air-Sea Interaction (at AMS 2027)",
+      "start": "2027-01-10",
+      "end": "2027-01-14",
+      "city": "Denver, CO",
+      "url": "https://annual.ametsoc.org/2027/program-events/conferences-and-symposia/25th-conference-on-air-sea-interaction/",
+      "deadlines": [],
+      "kind": "specialist"
+    },
+    {
+      "name": "28th Conference on Satellite Meteorology, Oceanography, and Climatology (at AMS 2027)",
+      "start": "2027-01-10",
+      "end": "2027-01-14",
+      "city": "Denver, CO",
+      "url": "https://annual.ametsoc.org/2027/program-events/conferences-and-symposia/28th-conference-on-satellite-meteorology-oceanography-and-climatology/",
+      "deadlines": [],
+      "kind": "specialist"
+    },
+    {
+      "name": "27th Conference on Aviation, Range, and Aerospace Meteorology (at AMS 2027)",
+      "start": "2027-01-10",
+      "end": "2027-01-14",
+      "city": "Denver, CO",
+      "url": "https://annual.ametsoc.org/2027/program-events/conferences-and-symposia/27th-conference-on-aviation-range-and-aerospace-meteorology/",
+      "deadlines": [],
+      "kind": "specialist"
+    },
+    {
+      "name": "ECMWF WeatherGenerator Community Hackathon",
+      "start": "2027-01-26",
+      "end": "2027-01-28",
+      "city": "ECMWF (details on site)",
+      "url": "https://events.ecmwf.int/event/582/",
+      "deadlines": [],
+      "kind": "specialist"
+    },
+    {
+      "name": "30th International Polar Conference (German Society for Polar Research)",
+      "start": "2027-02-22",
+      "end": "2027-02-26",
+      "city": "Bremerhaven, Germany",
+      "url": "https://www.polarforschung.de/en/events/international-polar-conference/30-internationale-polartagung-2027",
+      "deadlines": [
+        {
+          "label": "Abstracts due",
+          "date": "2026-10-30"
+        }
+      ],
+      "kind": "specialist"
+    },
+    {
+      "name": "IUGG General Assembly 2027, with IAMAS atmospheric sciences sessions",
+      "start": "2027-07-16",
+      "end": "2027-07-22",
+      "city": "Incheon, South Korea",
+      "url": "http://iugg2027korea.org/",
+      "deadlines": [],
+      "kind": "specialist"
+    },
+    {
+      "name": "AAAR 45th Annual Conference (aerosol research)",
+      "start": "2027-10-04",
+      "end": "2027-10-08",
+      "city": "Cleveland, OH",
+      "url": "https://www.aaar.org/meetings-events/meetings-and-events/",
+      "deadlines": [],
+      "kind": "specialist"
     }
   ]
 }

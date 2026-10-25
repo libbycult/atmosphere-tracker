@@ -642,7 +642,12 @@ async function loadGrants() {
 /* ---------- Conferences ---------- */
 async function renderEvents() {
   const data = await fetchJson("data/events.json");
-  const events = (data?.events || []).slice().sort((a, b) => a.start.localeCompare(b.start));
+  const kind = state.eventKind || "all";
+  const all = (data?.events || []).slice().sort((a, b) => a.start.localeCompare(b.start));
+  const events = all.filter((ev) => kind === "all" || (ev.kind || "major") === kind);
+  $("#event-kinds").innerHTML = [["all", "All"], ["major", "Big meetings"], ["specialist", "Specialist"]].map(([k, label]) =>
+    `<button type="button" class="chip" data-kind="${k}" aria-pressed="${k === kind}">${label}<span class="count">${k === "all" ? all.length : all.filter((e) => (e.kind || "major") === k).length}</span></button>`).join("");
+  $("#event-kinds").onclick = (e) => { const b = e.target.closest("[data-kind]"); if (b) { state.eventKind = b.dataset.kind; renderEvents(); } };
   const now = Date.now();
   const fmtRange = (a, b) => {
     const s = new Date(a + "T12:00:00"), e = new Date(b + "T12:00:00");
@@ -658,7 +663,7 @@ async function renderEvents() {
     return `<li class="event${past ? " past" : ""}">
       <div class="countdown">${counter}</div>
       <div>
-        <h3>${esc(ev.name)}</h3>
+        <h3>${esc(ev.name)}${ev.kind === "specialist" ? ` <span class="badge">Specialist</span>` : ""}</h3>
         <p>${esc(fmtRange(ev.start, ev.end))} · ${esc(ev.city)}</p>
         ${deadlines ? `<p>${deadlines}</p>` : ""}
         <div class="links"><a href="${esc(ev.url)}" target="_blank" rel="noopener">Meeting site</a></div>
