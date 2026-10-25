@@ -401,7 +401,5 @@ details.abstract p { margin: 6px 0 0; max-width: 68ch; }
 .face span { font-size: .82rem; color: var(--muted); }
 .face .credit { font-size: .75rem; color: var(--muted); }
 .faces .status { grid-column: 1 / -1; }
-.face.giant { grid-column: 1 / -1; }
-.face.giant img { aspect-ratio: auto; height: min(88vh, 900px); object-fit: cover; object-position: center 25%; }
-.face.giant b { font-size: clamp(1.6rem, 6vw, 3rem); }
-.face.giant span { font-size: 1rem; }
+.face.giant { grid-column: span 2; }
+.face.giant b { font-size: 1.2rem; }
