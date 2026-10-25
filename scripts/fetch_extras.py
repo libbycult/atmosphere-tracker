@@ -343,17 +343,22 @@ def snow():
 def drought():
     end = date.today()
     text = fetch(DROUGHT_URL.format(end=f"{end.month}/{end.day}/{end.year}")).decode()
-    weeks = []
-    for line in text.splitlines()[1:]:
-        parts = line.split(",")
+    rows = [line.split(",") for line in text.splitlines()[1:]]
+    # The "us" area returns more than one region per week; keep the contiguous US when present.
+    areas = {r[1].strip() for r in rows if len(r) > 1}
+    if "CONUS" in areas:
+        rows = [r for r in rows if len(r) > 1 and r[1].strip() == "CONUS"]
+    by_week = {}
+    for parts in rows:
         try:
             d = parts[0].strip()
-            weeks.append([f"{d[:4]}-{d[4:6]}-{d[6:8]}"] + [round(float(x), 2) for x in parts[3:8]])
+            by_week[f"{d[:4]}-{d[4:6]}-{d[6:8]}"] = [round(float(x), 2) for x in parts[3:8]]
         except (IndexError, ValueError):
             continue
-    if not weeks:
+    if not by_week:
         raise ValueError("no drought rows")
-    weeks.sort()
+    print(f"drought areas: {sorted(areas)}")
+    weeks = [[d] + v for d, v in sorted(by_week.items())]
     write("drought.json", {"updated": datetime.now(timezone.utc).isoformat(), "levels": ["D0", "D1", "D2", "D3", "D4"], "weeks": weeks})
     print(f"Wrote {len(weeks)} drought weeks")
 
