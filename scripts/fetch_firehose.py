@@ -96,7 +96,7 @@ def sync_rules(token):
     for r in existing or []:  # rules added by hand in the dashboard keep their own tag
         ids.setdefault(str(r["id"]), r.get("tag") or "other")
     global RULE_LIST
-    RULE_LIST = [{"id": str(r.get("id")), "tag": r.get("tag"), "value": (r.get("value") or "")[:160]} for r in existing or []]
+    RULE_LIST = [{"id": str(r.get("id")), "tag": r.get("tag"), "value": r.get("value") or ""} for r in existing or []]
     return ids
 
 
@@ -135,6 +135,7 @@ def employer_from(title, domain):
     return m.group(1).strip() if m else domain
 
 
+MIN_DR = {"research": 60, "jobs": 30}  # Ahrefs domain rating, 0-100
 SEEN_KEYS = set()  # shapes of update events, written out for checking how matches map to rules
 SEEN_QUERY_IDS = set()
 JOB_WORDS = re.compile(r"\b(jobs?|hiring|careers?|positions?|vacanc\w*|postdoc\w*|apply)\b", re.I)
@@ -142,13 +143,13 @@ JOB_WORDS = re.compile(r"\b(jobs?|hiring|careers?|positions?|vacanc\w*|postdoc\w
 
 def tag_for(update, tags, doc):
     SEEN_KEYS.update(update.keys())
-    for key in ("query_id", "rule_id", "queryId", "ruleId"):
-        if update.get(key) is not None:
-            SEEN_QUERY_IDS.add(str(update[key]))
-            if str(update[key]) in tags:
-                return tags[str(update[key])]
-    if update.get("tag") in RULES:
-        return update["tag"]
+    ids = update.get("query_ids") or ([update["query_id"]] if update.get("query_id") is not None else [])
+    for qid in ids:
+        SEEN_QUERY_IDS.add(str(qid))
+        if tags.get(str(qid)) in RULES:
+            return tags[str(qid)]
+    if ids:
+        return None  # matched only rules that aren't ours (or were deleted)
     # Fall back to reading the page itself when the rule can't be identified.
     url = doc.get("url", "")
     domain = (urllib.parse.urlsplit(url).hostname or "").removeprefix("www.")
@@ -164,8 +165,14 @@ def to_item(update, tags):
         return None
     domain = urllib.parse.urlsplit(url).hostname or ""
     domain = domain.removeprefix("www.")
+    tag = tag_for(update, tags, doc)
+    dr = doc.get("domain_rating")
+    # Skip content farms: research news must come from well-established sites, job posts from real boards.
+    if tag is None or (isinstance(dr, (int, float)) and dr < MIN_DR.get(tag, 0)):
+        return None
     item = {
-        "tag": tag_for(update, tags, doc),
+        "tag": tag,
+        "dr": dr,
         "url": url,
         "title": title[:200],
         "domain": domain,
@@ -203,7 +210,7 @@ def main():
     cutoff = (datetime.now(timezone.utc) - timedelta(days=KEEP_DAYS)).isoformat()
     merged, seen = [], set()
     # Older runs saved unmatched pages as "other"; those came from a rule that no longer exists.
-    old = [i for i in previous() if i.get("tag") in RULES]
+    old = [i for i in previous() if i.get("tag") in RULES and isinstance(i.get("dr"), (int, float)) and i["dr"] >= MIN_DR.get(i["tag"], 0)]
     for item in sorted(fresh + old, key=lambda i: i.get("matched", ""), reverse=True):
         key = re.sub(r"\W+", " ", item["title"].lower()).strip()  # the same story often appears under many URLs
         if item["url"] in seen or key in seen or item.get("matched", "") < cutoff:
