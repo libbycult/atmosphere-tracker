@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://libbycult.github.io/atmosphere-tracker/sitemap.xml

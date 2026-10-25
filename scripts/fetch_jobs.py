@@ -17,7 +17,7 @@ from pathlib import Path
 
 OUT = Path(__file__).resolve().parent.parent / "data" / "jobs.json"
 MAX_AGE_DAYS = 90
-USER_AGENT = "Atmosphere Tracker job collector (+https://github.com/libbycult/atmosphere-tracker)"
+USER_AGENT = "Atmosphere Scholar job collector (+https://github.com/libbycult/atmosphere-tracker)"
 
 # Madgex-powered boards publish search results as RSS at /jobsrss/?keywords=...
 BOARDS = {

@@ -459,11 +459,11 @@ main { padding-top: 12px; }
 
 /* ---------- Topic map ---------- */
 .netfig .chart-body svg { touch-action: manipulation; }
-.net-link { stroke: var(--muted); opacity: .35; }
+.net-link { stroke: var(--muted); opacity: .25; }
 .net-node circle { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; transition: opacity .15s; }
 .net-node { cursor: pointer; outline: none; }
 .net-node:hover circle, .net-node:focus-visible circle { fill: var(--accent); }
-.net-label { fill: var(--ink); font: 600 11px var(--font-body); text-anchor: middle; pointer-events: none; }
+.net-label { fill: var(--ink); font: 600 12px var(--font-body); text-anchor: middle; pointer-events: none; }
 .net-label.in { font-weight: 600; }
 .net.focused .net-node:not(.on), .net.focused .net-label:not(.on) { opacity: .2; }
 .net-label.out { paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }

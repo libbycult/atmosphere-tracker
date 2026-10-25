@@ -16,7 +16,7 @@ from pathlib import Path
 OUT = Path(__file__).resolve().parent.parent / "data" / "network.json"
 LIVE = "https://libbycult.github.io/atmosphere-tracker/data/network.json"
 API = "https://api.openalex.org/works"
-USER_AGENT = "Atmosphere Tracker network builder (+https://github.com/libbycult/atmosphere-tracker)"
+USER_AGENT = "Atmosphere Scholar network builder (+https://github.com/libbycult/atmosphere-tracker)"
 NODES = 36
 MAX_AGE = timedelta(days=7)
 

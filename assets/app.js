@@ -1,4 +1,4 @@
-// Atmosphere Tracker: papers come live from the OpenAlex API. Jobs, funding calls and the CO2 reading
+// Atmosphere Scholar: papers come live from the OpenAlex API. Jobs, funding calls and the CO2 reading
 // come from files in data/ that a GitHub Action rebuilds daily (see scripts/).
 
 const OPENALEX = "https://api.openalex.org/works";
@@ -99,7 +99,7 @@ function showTab() {
   }
   const link = $(`#tab-${tab}`);
   $("#page-title").textContent = link.textContent;
-  document.title = tab === "papers" ? "Atmosphere Tracker" : `${link.textContent} · Atmosphere Tracker`;
+  document.title = tab === "papers" ? "Atmosphere Scholar" : `${link.textContent} · Atmosphere Scholar`;
   for (const menu of document.querySelectorAll(".menu")) {
     const here = menu.contains(link);
     menu.classList.toggle("active", here);
@@ -1550,75 +1550,94 @@ async function initMap() {
 function layoutMap(nodes, links, W, H) {
   let seed = 7;
   const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  nodes.forEach((n, i) => { const a = (i / nodes.length) * Math.PI * 2; n.x = W / 2 + Math.cos(a) * W * 0.3 + rand() * 10; n.y = H / 2 + Math.sin(a) * H * 0.3 + rand() * 10; n.vx = n.vy = 0; });
+  nodes.forEach((n, i) => { const a = (i / nodes.length) * Math.PI * 2; n.x = W / 2 + Math.cos(a) * W * 0.35 + rand() * 10; n.y = H / 2 + Math.sin(a) * H * 0.35 + rand() * 10; n.vx = n.vy = 0; });
+  // Keep each bubble, and any label hanging below it, inside the canvas.
+  const clamp = (n) => { n.x = Math.max(n.padX + 4, Math.min(W - n.padX - 4, n.x)); n.y = Math.max(n.r + 4, Math.min(H - n.padY - 4, n.y)); };
+  const gap = (a, b) => a.r + b.r + (a.out || b.out ? 34 : 22);
   const maxW = Math.max(...links.map((l) => l.w));
-  for (let step = 0; step < 400; step++) {
-    const cool = 1 - step / 400;
+  for (let step = 0; step < 500; step++) {
+    const cool = 1 - step / 500;
     for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
       const a = nodes[i], b = nodes[j];
       let dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 0.01;
-      const min = a.r + b.r + 14;
-      const f = (d < min ? (min - d) * 0.5 : 0) + 1800 / (d * d);
+      const min = gap(a, b);
+      const f = (d < min ? (min - d) * 0.5 : 0) + 6000 / (d * d);
       dx /= d; dy /= d;
       a.vx -= dx * f; a.vy -= dy * f; b.vx += dx * f; b.vy += dy * f;
     }
     for (const l of links) {
       const a = l.a, b = l.b, dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 0.01;
-      const target = a.r + b.r + 40, f = (d - target) * 0.02 * (l.w / maxW + 0.2);
+      const target = a.r + b.r + 70, f = (d - target) * 0.01 * (l.w / maxW + 0.2);
       a.vx += (dx / d) * f; a.vy += (dy / d) * f; b.vx -= (dx / d) * f; b.vy -= (dy / d) * f;
     }
     for (const n of nodes) {
-      n.vx += (W / 2 - n.x) * 0.004; n.vy += (H / 2 - n.y) * 0.004;
+      n.vx += (W / 2 - n.x) * 0.002; n.vy += (H / 2 - n.y) * 0.003;
       n.x += Math.max(-20, Math.min(20, n.vx)) * cool; n.y += Math.max(-20, Math.min(20, n.vy)) * cool;
       n.vx *= 0.5; n.vy *= 0.5;
-      n.x = Math.max(n.r + 4, Math.min(W - n.r - 4, n.x)); n.y = Math.max(n.r + 4, Math.min(H - n.r - 4, n.y));
+      clamp(n);
     }
   }
-  // Final passes: nudge apart any bubbles that still overlap.
+  // Final passes: nudge apart any bubbles (and labels) that still crowd each other.
   for (let pass = 0; pass < 300; pass++) {
     let moved = false;
     for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
       const a = nodes[i], b = nodes[j];
-      const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 0.01, min = a.r + b.r + 6;
+      const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 0.01, min = gap(a, b) - 6;
       if (d >= min) continue;
       const push = (min - d) / 2;
       a.x -= (dx / d) * push; a.y -= (dy / d) * push; b.x += (dx / d) * push; b.y += (dy / d) * push;
       moved = true;
     }
-    for (const n of nodes) { n.x = Math.max(n.r + 4, Math.min(W - n.r - 4, n.x)); n.y = Math.max(n.r + 4, Math.min(H - n.r - 4, n.y)); }
+    nodes.forEach(clamp);
     if (!moved) break;
   }
 }
 
+// How a keyword's label fits its bubble: on one line, on two lines, or below the bubble.
+function labelFit(label, r) {
+  const one = Math.min(13, (r * 1.7) / (label.length * 0.55));
+  if (one >= 10) return { mode: "one", size: one };
+  const words = label.split(" ");
+  let cut = 1, best = Infinity;
+  for (let i = 1; i < words.length; i++) { const w = Math.max(words.slice(0, i).join(" ").length, words.slice(i).join(" ").length); if (w < best) { best = w; cut = i; } }
+  const two = Math.min(12, (r * 1.5) / (best * 0.55));
+  if (words.length > 1 && two >= 10) return { mode: "two", size: two, lines: [words.slice(0, cut).join(" "), words.slice(cut).join(" ")] };
+  return { mode: "out" };
+}
+
+// Near-duplicates of a bigger keyword, and ice topics; they crowd the map without adding anything.
+const MAP_SKIP = new Set(["paleoclimate reconstruction", "climate change impacts", "urban air pollution", "land use and land cover change",
+  "urban expansion", "global warming", "pm10", "glacier retreat", "permafrost", "particulate matter"]);
+
 function drawMap() {
   const body = $("#net-body");
-  const W = Math.max(300, body.clientWidth), H = W < 600 ? 560 : 560;
-  // Size bubbles by area so that together they cover about a quarter of the canvas.
-  const total = netData.nodes.reduce((sum, n) => sum + n.count, 0);
-  const k = Math.sqrt((0.25 * W * H) / (Math.PI * total));
-  const nodes = netData.nodes.slice(0, W < 600 ? 24 : 40).map((n) => ({ ...n, r: Math.max(7, k * Math.sqrt(n.count)) }));
+  const phone = body.clientWidth < 600;
+  const W = Math.max(300, body.clientWidth), H = phone ? 620 : 660;
+  const picked = netData.nodes.filter((n) => !MAP_SKIP.has(n.label.toLowerCase())).slice(0, phone ? 16 : 26);
+  // Size bubbles by area so that together they cover about an eighth of the canvas, leaving room to breathe.
+  const total = picked.reduce((sum, n) => sum + n.count, 0);
+  const k = Math.sqrt((0.13 * W * H) / (Math.PI * total));
+  const nodes = picked.map((n) => {
+    const r = Math.max(10, k * Math.sqrt(n.count));
+    const fit = labelFit(n.label, r), out = fit.mode === "out";
+    return { ...n, r, fit, out, padX: out ? Math.max(r, n.label.length * 3.4) : r, padY: out ? r + 18 : r };
+  });
   const byId = Object.fromEntries(nodes.map((n) => [n.id, n]));
   // Link strength relative to how common both keywords are, so big bubbles don't link to everything.
   let links = netData.links.filter((l) => byId[l.source] && byId[l.target])
     .map((l) => ({ ...l, a: byId[l.source], b: byId[l.target], w: l.count / Math.sqrt(byId[l.source].count * byId[l.target].count) }));
   const keep = new Set();
-  for (const n of nodes) links.filter((l) => l.a === n || l.b === n).sort((x, y) => y.w - x.w).slice(0, 3).forEach((l) => keep.add(l));
+  for (const n of nodes) links.filter((l) => l.a === n || l.b === n).sort((x, y) => y.w - x.w).slice(0, 2).forEach((l) => keep.add(l));
   links = links.filter((l) => keep.has(l));
   layoutMap(nodes, links, W, H);
   const maxW = Math.max(...links.map((l) => l.w));
-  const lines = links.map((l, i) => `<line class="net-link" data-i="${i}" x1="${l.a.x.toFixed(1)}" y1="${l.a.y.toFixed(1)}" x2="${l.b.x.toFixed(1)}" y2="${l.b.y.toFixed(1)}" stroke-width="${(0.8 + (l.w / maxW) * 4).toFixed(2)}"/>`).join("");
+  const lines = links.map((l, i) => `<line class="net-link" data-i="${i}" x1="${l.a.x.toFixed(1)}" y1="${l.a.y.toFixed(1)}" x2="${l.b.x.toFixed(1)}" y2="${l.b.y.toFixed(1)}" stroke-width="${(0.8 + (l.w / maxW) * 3).toFixed(2)}"/>`).join("");
   // Labels go inside a bubble when they fit (on one or two lines), otherwise below it, in a layer above all bubbles.
   const labelFor = (n) => {
-    const one = Math.min(13, (n.r * 1.7) / (n.label.length * 0.55));
-    if (one >= 9.5) return `<text class="net-label in" data-id="${esc(n.id)}" x="${n.x.toFixed(1)}" y="${(n.y + 4).toFixed(1)}" font-size="${one.toFixed(1)}">${esc(n.label)}</text>`;
-    const words = n.label.split(" ");
-    if (words.length > 1) {
-      let cut = 1, best = Infinity;
-      for (let i = 1; i < words.length; i++) { const w = Math.max(words.slice(0, i).join(" ").length, words.slice(i).join(" ").length); if (w < best) { best = w; cut = i; } }
-      const two = Math.min(12, (n.r * 1.5) / (best * 0.55));
-      if (two >= 9.5) return `<text class="net-label in" data-id="${esc(n.id)}" x="${n.x.toFixed(1)}" y="${(n.y - two * 0.25).toFixed(1)}" font-size="${two.toFixed(1)}"><tspan x="${n.x.toFixed(1)}">${esc(words.slice(0, cut).join(" "))}</tspan><tspan x="${n.x.toFixed(1)}" dy="1.1em">${esc(words.slice(cut).join(" "))}</tspan></text>`;
-    }
-    return `<text class="net-label out" data-id="${esc(n.id)}" x="${n.x.toFixed(1)}" y="${(n.y + n.r + 11).toFixed(1)}">${esc(n.label)}</text>`;
+    const x = n.x.toFixed(1), f = n.fit, attrs = `data-id="${esc(n.id)}" x="${x}"`;
+    if (f.mode === "one") return `<text class="net-label in" ${attrs} y="${(n.y + 4).toFixed(1)}" font-size="${f.size.toFixed(1)}">${esc(n.label)}</text>`;
+    if (f.mode === "two") return `<text class="net-label in" ${attrs} y="${(n.y - f.size * 0.25).toFixed(1)}" font-size="${f.size.toFixed(1)}"><tspan x="${x}">${esc(f.lines[0])}</tspan><tspan x="${x}" dy="1.1em">${esc(f.lines[1])}</tspan></text>`;
+    return `<text class="net-label out" ${attrs} y="${(n.y + n.r + 14).toFixed(1)}">${esc(n.label)}</text>`;
   };
   const bubbles = nodes.map((n) => `<g class="net-node" data-id="${esc(n.id)}" transform="translate(${n.x.toFixed(1)},${n.y.toFixed(1)})" tabindex="0" role="button" aria-label="${esc(n.label)}, ${n.count.toLocaleString()} papers"><circle r="${n.r.toFixed(1)}"/></g>`).join("");
   const labels = nodes.map(labelFor).join("");
