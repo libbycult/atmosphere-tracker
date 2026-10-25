@@ -38,6 +38,8 @@ jobs:
       - name: Collect CO2, funding calls and active storms
         run: python scripts/fetch_extras.py
         continue-on-error: true
+      - name: Stamp asset URLs so browsers load the newest version
+        run: sed -i "s#assets/style.css\"#assets/style.css?v=${GITHUB_SHA::8}\"#; s#assets/app.js\"#assets/app.js?v=${GITHUB_SHA::8}\"#" index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
