@@ -392,3 +392,12 @@ details.abstract p { margin: 6px 0 0; max-width: 68ch; }
 .series-key i.sw { width: 12px; height: 12px; border: 0; border-radius: 3px; background: var(--c); }
 #daily-picker { margin: 4px 0 6px; }
 #daily-picker button { font-size: .85rem; padding: 3px 12px; }
+
+/* ---------- Faces ---------- */
+.faces { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 22px 16px; }
+.face { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.face img { display: block; width: 100%; aspect-ratio: 4 / 5; object-fit: cover; object-position: center 20%; border-radius: 8px; background: var(--soft); }
+.face b { margin-top: 6px; font-size: .95rem; line-height: 1.25; }
+.face span { font-size: .82rem; color: var(--muted); }
+.face .credit { font-size: .75rem; color: var(--muted); }
+.faces .status { grid-column: 1 / -1; }
