@@ -9,44 +9,57 @@
 <meta property="og:description" content="The latest in atmospheric science: new papers, live climate data, storms, jobs and funding in one place.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=Reenie+Beanie&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=Rock+Salt&family=Kalam:wght@400;700&display=swap">
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
 <header class="masthead">
   <div class="wrap masthead-inner">
     <a class="brand" href="#papers">The Lapse Rate</a>
+    <div class="masthead-tools">
     <a class="co2" id="co2" href="https://gml.noaa.gov/ccgg/trends/" target="_blank" rel="noopener" hidden>
       <span class="co2-label">CO₂ today</span>
       <span class="co2-value" id="co2-value"></span>
       <span class="co2-delta" id="co2-delta"></span>
     </a>
+    <button type="button" class="theme-btn" id="theme-btn" aria-label="Switch light or dark">☾</button>
+    </div>
   </div>
 </header>
 
 <nav class="tabbar" aria-label="Sections">
-  <div class="wrap tabs" role="tablist">
-    <div class="tabgroup"><span class="tabgroup-label">Research</span>
-      <a class="tab" role="tab" id="tab-papers" href="#papers" aria-controls="view-papers">Papers</a>
-      <a class="tab" role="tab" id="tab-scientists" href="#scientists" aria-controls="view-scientists">Scientists</a>
-      <a class="tab" role="tab" id="tab-blogs" href="#blogs" aria-controls="view-blogs">Blogs</a>
-      <a class="tab" role="tab" id="tab-legends" href="#legends" aria-controls="view-legends">Legends</a>
-      <a class="tab" role="tab" id="tab-faces" href="#faces" aria-controls="view-faces">Faces</a>
+  <div class="wrap tabs">
+    <div class="menu" data-menu="research">
+      <button type="button" class="menu-btn" aria-expanded="false" aria-controls="menu-research"><span class="menu-name">Research</span><span class="menu-current"></span><svg class="caret" viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1.5 6 6.5 11 1.5"/></svg></button>
+      <div class="menu-list" id="menu-research">
+      <a class="tab" id="tab-papers" href="#papers" aria-controls="view-papers">Papers</a>
+      <a class="tab" id="tab-scientists" href="#scientists" aria-controls="view-scientists">Scientists</a>
+      <a class="tab" id="tab-blogs" href="#blogs" aria-controls="view-blogs">Blogs</a>
+      <a class="tab" id="tab-legends" href="#legends" aria-controls="view-legends">Legends</a>
+      <a class="tab" id="tab-faces" href="#faces" aria-controls="view-faces">Faces</a>
     </div>
-    <div class="tabgroup"><span class="tabgroup-label">Earth</span>
-      <a class="tab" role="tab" id="tab-sky" href="#sky" aria-controls="view-sky">Sky Now</a>
-      <a class="tab" role="tab" id="tab-charts" href="#charts" aria-controls="view-charts">Charts</a>
-      <a class="tab" role="tab" id="tab-explorer" href="#explorer" aria-controls="view-explorer">Explorer</a>
     </div>
-    <div class="tabgroup"><span class="tabgroup-label">Career</span>
-      <a class="tab" role="tab" id="tab-jobs" href="#jobs" aria-controls="view-jobs">Jobs</a>
-      <a class="tab" role="tab" id="tab-funding" href="#funding" aria-controls="view-funding">Funding</a>
-      <a class="tab" role="tab" id="tab-events" href="#events" aria-controls="view-events">Conferences</a>
-      <a class="tab" role="tab" id="tab-resources" href="#resources" aria-controls="view-resources">Data &amp; Programs</a>
-      <a class="tab" role="tab" id="tab-social" href="#social" aria-controls="view-social">Social</a>
+    <div class="menu" data-menu="earth">
+      <button type="button" class="menu-btn" aria-expanded="false" aria-controls="menu-earth"><span class="menu-name">Earth</span><span class="menu-current"></span><svg class="caret" viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1.5 6 6.5 11 1.5"/></svg></button>
+      <div class="menu-list" id="menu-earth">
+      <a class="tab" id="tab-sky" href="#sky" aria-controls="view-sky">Sky Now</a>
+      <a class="tab" id="tab-charts" href="#charts" aria-controls="view-charts">Charts</a>
+      <a class="tab" id="tab-explorer" href="#explorer" aria-controls="view-explorer">Explorer</a>
+    </div>
+    </div>
+    <div class="menu" data-menu="career">
+      <button type="button" class="menu-btn" aria-expanded="false" aria-controls="menu-career"><span class="menu-name">Career</span><span class="menu-current"></span><svg class="caret" viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1.5 6 6.5 11 1.5"/></svg></button>
+      <div class="menu-list" id="menu-career">
+      <a class="tab" id="tab-jobs" href="#jobs" aria-controls="view-jobs">Jobs</a>
+      <a class="tab" id="tab-funding" href="#funding" aria-controls="view-funding">Funding</a>
+      <a class="tab" id="tab-events" href="#events" aria-controls="view-events">Conferences</a>
+      <a class="tab" id="tab-resources" href="#resources" aria-controls="view-resources">Data &amp; Programs</a>
+      <a class="tab" id="tab-social" href="#social" aria-controls="view-social">Social</a>
+    </div>
     </div>
   </div>
 </nav>
+<div class="wrap"><h1 class="page-title" id="page-title">Papers</h1></div>
 
 <aside class="altimeter" id="altimeter" aria-hidden="true">
   <div class="alt-track"><div class="alt-dot" id="alt-dot"></div></div>

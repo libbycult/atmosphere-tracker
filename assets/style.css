@@ -13,7 +13,7 @@
   --free: #1f7a4a;
   --font-body: "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-title: "Source Serif 4", Georgia, "Times New Roman", serif;
-  --font-hand: "Reenie Beanie", "Segoe Print", "Bradley Hand", cursive;
+  --font-hand: "Rock Salt", "Segoe Print", "Bradley Hand", cursive;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -403,3 +403,54 @@ details.abstract p { margin: 6px 0 0; max-width: 68ch; }
 .faces .status { grid-column: 1 / -1; }
 .face.giant { grid-column: span 2; }
 .face.giant b { font-size: 1.2rem; }
+
+/* ---------- Hand-drawn layer: sketchy title, menus, headings and boxes ---------- */
+:root { --font-sketch: "Kalam", "Segoe Print", "Bradley Hand", cursive; }
+.brand { font-size: clamp(1.9rem, 6.4vw, 2.9rem); line-height: 1.25; letter-spacing: 0; padding-bottom: 6px;
+  background: no-repeat left bottom / 100% 10px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 10' preserveAspectRatio='none'%3E%3Cpath d='M2 6 C40 2 70 9 110 5 S190 2 230 6 S285 8 298 4' fill='none' stroke='%231e5aa8' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E"); }
+.masthead-tools { display: flex; align-items: center; gap: 14px; }
+.theme-btn { font: inherit; font-size: 1.1rem; line-height: 1; width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid var(--line);
+  background: var(--bg); color: var(--ink); cursor: pointer; }
+.theme-btn:hover { border-color: var(--muted); }
+
+/* Dropdown menus replace the long tab rows */
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; padding-block: 10px; overflow: visible; }
+.menu { position: relative; }
+.menu-btn { display: inline-flex; align-items: baseline; gap: 8px; font: 700 1.15rem var(--font-sketch); color: var(--ink);
+  padding: 6px 14px 4px; background: var(--bg); cursor: pointer;
+  border: 2px solid var(--line); border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px; }
+.menu-btn:hover, .menu.open .menu-btn { border-color: var(--ink); }
+.menu.active .menu-btn { border-color: var(--accent); background: var(--accent-soft); }
+.menu-current { font: 400 .95rem var(--font-body); color: var(--accent); }
+.menu-current:empty { display: none; }
+.menu-current::before { content: "· "; color: var(--muted); }
+.caret { width: 12px; height: 8px; align-self: center; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform .15s; }
+.menu.open .caret { transform: rotate(180deg); }
+.menu-list { display: none; position: absolute; left: 0; top: calc(100% + 6px); z-index: 20; min-width: 200px; padding: 6px;
+  background: var(--bg); border: 2px solid var(--ink); border-radius: 15px 225px 15px 255px / 255px 15px 225px 15px;
+  box-shadow: 4px 5px 0 var(--accent-soft); }
+.menu.open .menu-list { display: flex; flex-direction: column; }
+.menu-list .tab { padding: 8px 12px; border: 0; border-radius: 8px; font-size: 1rem; color: var(--ink); white-space: nowrap; }
+.menu-list .tab:hover, .menu-list .tab:focus-visible { background: var(--soft); }
+.menu-list .tab[aria-current="page"] { color: var(--accent); background: var(--accent-soft); }
+@media (max-width: 560px) {
+  .tabs { gap: 6px; }
+  .menu-btn { font-size: 1.05rem; padding: 5px 11px 3px; }
+  .menu-current { display: none; }
+  .menu:last-child .menu-list { left: auto; right: 0; }
+}
+
+/* Section name in handwriting, with a scribbled underline */
+.page-title { margin: 22px 0 0; font: 700 clamp(1.7rem, 5vw, 2.2rem)/1.2 var(--font-sketch); color: var(--ink); display: inline-block; padding-bottom: 4px;
+  background: no-repeat left bottom / 100% 8px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M2 5 C30 2 60 7 100 4 S170 2 198 5' fill='none' stroke='%23e0a43a' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E"); }
+main { padding-top: 14px; }
+
+/* Headings and boxes get the sketch treatment */
+.chart-title, .panel h2, .legend h3, .blog h3 { font-family: var(--font-sketch); font-weight: 700; }
+.chart-title { font-size: 1.3rem; }
+.panel { background: var(--bg); border: 2px solid var(--line); border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px; }
+.face img { border-radius: 4px; transform: rotate(-1deg); box-shadow: 3px 4px 0 var(--soft); border: 4px solid var(--bg); outline: 1px solid var(--line); }
+.face:nth-child(2n) img { transform: rotate(1.2deg); }
+.face:nth-child(3n) img { transform: rotate(-.4deg); }
+.linkish { font: inherit; font-size: .85rem; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.chart-foot { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }

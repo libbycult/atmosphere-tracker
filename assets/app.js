@@ -94,8 +94,18 @@ function showTab() {
   const tab = TABS.includes(hash) ? hash : "papers";
   for (const t of TABS) {
     $(`#view-${t}`).hidden = t !== tab;
-    $(`#tab-${t}`).setAttribute("aria-selected", String(t === tab));
+    if (t === tab) $(`#tab-${t}`).setAttribute("aria-current", "page");
+    else $(`#tab-${t}`).removeAttribute("aria-current");
   }
+  const link = $(`#tab-${tab}`);
+  $("#page-title").textContent = link.textContent;
+  document.title = tab === "papers" ? "The Lapse Rate" : `${link.textContent} · The Lapse Rate`;
+  for (const menu of document.querySelectorAll(".menu")) {
+    const here = menu.contains(link);
+    menu.classList.toggle("active", here);
+    menu.querySelector(".menu-current").textContent = here ? link.textContent : "";
+  }
+  closeMenus();
   if (!loaded[tab]) {
     loaded[tab] = true;
     ({ scientists: initScientists, sky: loadSky, charts: initCharts, jobs: loadJobs, funding: loadGrants, events: renderEvents, resources: renderResources, social: renderSocial, legends: renderLegends, explorer: initExplorer, blogs: renderBlogs, faces: loadFaces })[tab]?.();
@@ -103,6 +113,72 @@ function showTab() {
   updateAltimeter();
 }
 window.addEventListener("hashchange", showTab);
+
+/* ---------- Dropdown menus ---------- */
+function closeMenus(except) {
+  for (const m of document.querySelectorAll(".menu")) {
+    if (m === except) continue;
+    m.classList.remove("open");
+    m.querySelector(".menu-btn").setAttribute("aria-expanded", "false");
+  }
+}
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest(".menu-btn");
+  if (btn) {
+    const menu = btn.closest(".menu"), open = !menu.classList.contains("open");
+    closeMenus(menu);
+    menu.classList.toggle("open", open);
+    btn.setAttribute("aria-expanded", String(open));
+    if (open) menu.querySelector(".tab[aria-current]")?.focus() || menu.querySelector(".tab").focus();
+  } else if (!e.target.closest(".menu-list")) closeMenus();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && document.querySelector(".menu.open")) {
+    const btn = document.querySelector(".menu.open .menu-btn");
+    closeMenus();
+    btn.focus();
+  }
+  // "/" jumps to the search box on tabs that have one
+  if (e.key === "/" && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName)) {
+    const box = document.querySelector(".view:not([hidden]) input[type=search]");
+    if (box && !box.closest("[hidden]")) { e.preventDefault(); box.focus(); }
+  }
+});
+
+/* ---------- Light / dark ---------- */
+function applyTheme(theme) {
+  if (theme) document.documentElement.dataset.theme = theme;
+  else delete document.documentElement.dataset.theme;
+  const dark = theme ? theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  $("#theme-btn").textContent = dark ? "☀" : "☾";
+  $("#theme-btn").setAttribute("aria-label", dark ? "Switch to light" : "Switch to dark");
+}
+$("#theme-btn").addEventListener("click", () => {
+  const dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  const next = dark ? "light" : "dark";
+  save("atmo.theme", next);
+  applyTheme(next);
+  if (!$("#view-charts").hidden) dispatchEvent(new Event("resize"));
+});
+applyTheme(load("atmo.theme", null));
+
+/* ---------- Downloads ---------- */
+function download(name, text, type = "text/plain") {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = name;
+  document.body.append(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+const csvLink = (key) => `<button type="button" class="linkish" data-csv="${esc(key)}">Download CSV</button>`;
+const csvSources = {}; // key -> () => [header, rows]
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-csv]");
+  if (!b || !csvSources[b.dataset.csv]) return;
+  const [header, rows] = csvSources[b.dataset.csv]();
+  download(`lapse-rate-${b.dataset.csv}.csv`, [header, ...rows].map((r) => r.join(",")).join("\n"), "text/csv");
+});
 
 /* ---------- Papers ---------- */
 function isoDate(d) {
@@ -267,7 +343,8 @@ function renderSaved() {
   list.innerHTML = works.length
     ? works.map(paperItem).join("")
     : `<li class="empty"><strong>Your reading list is empty.</strong>Tap the star on any paper to save it here. The list stays in this browser.</li>`;
-  $("#paper-status").textContent = works.length ? `${works.length} saved ${works.length === 1 ? "paper" : "papers"}` : "";
+  $("#paper-status").innerHTML = works.length ? `${works.length} saved ${works.length === 1 ? "paper" : "papers"} · <button type="button" class="linkish" id="export-bib">Download all as BibTeX</button>` : "";
+  $("#export-bib")?.addEventListener("click", () => download("reading-list.bib", works.map(bibtexCitation).join("\n\n"), "application/x-bibtex"));
   $("#paper-more").hidden = true;
 }
 
@@ -1016,7 +1093,8 @@ function renderClimate() {
     const [lx, ly] = pts[pts.length - 1];
     $(`#stat-${c.key}`).innerHTML = `<b>${fmt(ly, c.dec, c.signed)}</b> ${esc(c.unit)}<span>${esc(c.label(lx))}</span>`;
     zoomable(fig, fig.querySelector(".chart-body"), pts, c);
-    fig.querySelector(".chart-foot").innerHTML = chartTable(pts, c);
+    csvSources[c.key] = () => [["date", `${c.key} (${c.unit})`], pts.map(([x, y]) => [c.label(x), y])];
+    fig.querySelector(".chart-foot").innerHTML = chartTable(pts, c) + csvLink(c.key);
   }
 }
 
@@ -1194,6 +1272,8 @@ function renderDrought() {
   $("#drought-stat").innerHTML = `<b>${last[2].toFixed(0)}%</b> in drought<span>Week of ${esc(formatDate(last[0]))}</span>`;
   $("#drought-legend").innerHTML = DROUGHT_LEVELS.map(([k, n], i) => `<span><i class="sw d${i}"></i>${k} ${esc(n)}</span>`).join("");
   zoomable(fig, $("#drought-body"), pts, { title: "US drought", draw: drawStack, initial: 10 });
+  csvSources.drought = () => [["week", "D0+ %", "D1+ %", "D2+ %", "D3+ %", "D4 %"], weeks];
+  if (!fig.querySelector("[data-csv]")) fig.insertAdjacentHTML("beforeend", `<div class="chart-foot">${csvLink("drought")}</div>`);
 }
 // Stacked area of cumulative percentages [x, D0, D1, D2, D3, D4, isoDate]; each band is "this level or worse".
 function drawStack(body, pts, opt) {
@@ -1306,7 +1386,8 @@ function renderExplorer() {
   $("#index-sub").textContent = def.sub;
   const [lx, ly] = pts[pts.length - 1];
   $("#index-stat").innerHTML = `<b>${fmt(ly, def.dec, opt.signed)}</b> ${esc(def.unit)}<span>${esc(monthLabel(lx))}</span>`;
-  $("#index-about").textContent = def.about;
+  $("#index-about").innerHTML = `${esc(def.about)} ${csvLink(def.key)}`;
+  csvSources[def.key] = () => [["month", def.key], pts.map(([x, y]) => [monthLabel(x), y])];
   const fig = $("#index-chart");
   fig.querySelector(".zoombar")?.remove();
   // Long monthly records are hard to read in full, so start on the last 20 years.
