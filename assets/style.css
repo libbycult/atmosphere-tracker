@@ -456,3 +456,18 @@ main { padding-top: 12px; }
 .webfind p { margin: 0; font-size: .88rem; color: var(--muted); }
 /* Plain title (Libby asked for something chill and boring) */
 .brand { font-family: var(--font-title); font-weight: 600; font-size: clamp(1.6rem, 5vw, 2rem); letter-spacing: -.01em; }
+
+/* ---------- Topic map ---------- */
+.netfig .chart-body svg { touch-action: manipulation; }
+.net-link { stroke: var(--muted); opacity: .35; }
+.net-node circle { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; transition: opacity .15s; }
+.net-node { cursor: pointer; outline: none; }
+.net-node:hover circle, .net-node:focus-visible circle { fill: var(--accent); }
+.net-label { fill: var(--ink); font: 600 11px var(--font-body); text-anchor: middle; pointer-events: none; }
+.net-label.in { font-weight: 600; }
+.net.focused .net-node:not(.on), .net.focused .net-label:not(.on) { opacity: .2; }
+.net-label.out { paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
+.net.focused .net-link { opacity: .08; }
+.net.focused .net-link.on { opacity: .9; stroke: var(--accent); }
+.netfig .tip span { display: block; }
+.netfig .tip { max-width: 240px; white-space: normal; }

@@ -34,6 +34,7 @@
       <div class="menu-list" id="menu-research">
       <a class="tab" id="tab-papers" href="#papers" aria-controls="view-papers">Papers</a>
       <a class="tab" id="tab-scientists" href="#scientists" aria-controls="view-scientists">Scientists</a>
+      <a class="tab" id="tab-map" href="#map" aria-controls="view-map">Topic Map</a>
       <a class="tab" id="tab-blogs" href="#blogs" aria-controls="view-blogs">Blogs</a>
       <a class="tab" id="tab-legends" href="#legends" aria-controls="view-legends">Legends</a>
       <a class="tab" id="tab-faces" href="#faces" aria-controls="view-faces">Faces</a>
@@ -143,6 +144,15 @@
       <p>Research news and new preprints from a live crawl of the web.</p>
       <ol class="weblist" id="web-research-list"></ol>
     </aside>
+  </section>
+
+  <!-- TOPIC MAP -->
+  <section id="view-map" class="view" role="tabpanel" aria-labelledby="tab-map" hidden>
+    <p class="intro">How the field's keywords connect. Bigger bubbles appear on more papers; a line means two keywords often show up on the same paper, and thicker lines mean more often. Hover or tap a bubble to see its neighbors, and click it to read those papers.</p>
+    <figure class="chart netfig">
+      <div class="chart-body" id="net-body"><p class="status">Loading the map…</p></div>
+      <p class="chart-sub" id="net-sub"></p>
+    </figure>
   </section>
 
   <!-- JOBS -->

@@ -87,7 +87,7 @@ const state = Object.assign(
 let saved = load("atmo.saved", {}); // OpenAlex id -> work, the viewer's reading list
 
 /* ---------- Tabs ---------- */
-const TABS = ["papers", "scientists", "blogs", "legends", "faces", "sky", "charts", "explorer", "jobs", "funding", "events", "resources", "social"];
+const TABS = ["papers", "scientists", "map", "blogs", "legends", "faces", "sky", "charts", "explorer", "jobs", "funding", "events", "resources", "social"];
 const loaded = {};
 function showTab() {
   const hash = location.hash.slice(1);
@@ -108,7 +108,7 @@ function showTab() {
   closeMenus();
   if (!loaded[tab]) {
     loaded[tab] = true;
-    ({ scientists: initScientists, sky: loadSky, charts: initCharts, jobs: loadJobs, funding: loadGrants, events: renderEvents, resources: renderResources, social: renderSocial, legends: renderLegends, explorer: initExplorer, blogs: renderBlogs, faces: loadFaces })[tab]?.();
+    ({ scientists: initScientists, sky: loadSky, charts: initCharts, jobs: loadJobs, funding: loadGrants, events: renderEvents, resources: renderResources, social: renderSocial, legends: renderLegends, explorer: initExplorer, blogs: renderBlogs, faces: loadFaces, map: initMap })[tab]?.();
   }
   updateAltimeter();
 }
@@ -1530,6 +1530,134 @@ function renderLegends() {
       ${l.quote ? `<blockquote>“${esc(l.quote)}”<cite>${esc(l.source)}</cite></blockquote>` : ""}
       <p class="fact"><b>Fun fact</b>${esc(l.fact)}</p>
     </li>`).join("");
+}
+
+/* ---------- Topic map: keyword bubbles linked by co-occurrence ---------- */
+let netData = null;
+async function initMap() {
+  netData = await fetchJson("data/network.json");
+  if (!netData?.nodes?.length) {
+    $("#net-body").innerHTML = `<p class="empty"><strong>The map is on its way.</strong>It is built from OpenAlex every week; check back shortly.</p>`;
+    return;
+  }
+  $("#net-sub").textContent = `Built from OpenAlex keywords on atmospheric science papers, ${netData.years}.`;
+  drawMap();
+  let t;
+  addEventListener("resize", () => { clearTimeout(t); t = setTimeout(() => { if (!$("#view-map").hidden) drawMap(); }, 200); });
+}
+
+// A small force layout: bubbles push apart, links pull together, everything drifts to the middle.
+function layoutMap(nodes, links, W, H) {
+  let seed = 7;
+  const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  nodes.forEach((n, i) => { const a = (i / nodes.length) * Math.PI * 2; n.x = W / 2 + Math.cos(a) * W * 0.3 + rand() * 10; n.y = H / 2 + Math.sin(a) * H * 0.3 + rand() * 10; n.vx = n.vy = 0; });
+  const maxW = Math.max(...links.map((l) => l.w));
+  for (let step = 0; step < 400; step++) {
+    const cool = 1 - step / 400;
+    for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+      const a = nodes[i], b = nodes[j];
+      let dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 0.01;
+      const min = a.r + b.r + 14;
+      const f = (d < min ? (min - d) * 0.5 : 0) + 1800 / (d * d);
+      dx /= d; dy /= d;
+      a.vx -= dx * f; a.vy -= dy * f; b.vx += dx * f; b.vy += dy * f;
+    }
+    for (const l of links) {
+      const a = l.a, b = l.b, dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 0.01;
+      const target = a.r + b.r + 40, f = (d - target) * 0.02 * (l.w / maxW + 0.2);
+      a.vx += (dx / d) * f; a.vy += (dy / d) * f; b.vx -= (dx / d) * f; b.vy -= (dy / d) * f;
+    }
+    for (const n of nodes) {
+      n.vx += (W / 2 - n.x) * 0.004; n.vy += (H / 2 - n.y) * 0.004;
+      n.x += Math.max(-20, Math.min(20, n.vx)) * cool; n.y += Math.max(-20, Math.min(20, n.vy)) * cool;
+      n.vx *= 0.5; n.vy *= 0.5;
+      n.x = Math.max(n.r + 4, Math.min(W - n.r - 4, n.x)); n.y = Math.max(n.r + 4, Math.min(H - n.r - 4, n.y));
+    }
+  }
+  // Final passes: nudge apart any bubbles that still overlap.
+  for (let pass = 0; pass < 300; pass++) {
+    let moved = false;
+    for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+      const a = nodes[i], b = nodes[j];
+      const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 0.01, min = a.r + b.r + 6;
+      if (d >= min) continue;
+      const push = (min - d) / 2;
+      a.x -= (dx / d) * push; a.y -= (dy / d) * push; b.x += (dx / d) * push; b.y += (dy / d) * push;
+      moved = true;
+    }
+    for (const n of nodes) { n.x = Math.max(n.r + 4, Math.min(W - n.r - 4, n.x)); n.y = Math.max(n.r + 4, Math.min(H - n.r - 4, n.y)); }
+    if (!moved) break;
+  }
+}
+
+function drawMap() {
+  const body = $("#net-body");
+  const W = Math.max(300, body.clientWidth), H = W < 600 ? 560 : 560;
+  // Size bubbles by area so that together they cover about a quarter of the canvas.
+  const total = netData.nodes.reduce((sum, n) => sum + n.count, 0);
+  const k = Math.sqrt((0.25 * W * H) / (Math.PI * total));
+  const nodes = netData.nodes.slice(0, W < 600 ? 24 : 40).map((n) => ({ ...n, r: Math.max(7, k * Math.sqrt(n.count)) }));
+  const byId = Object.fromEntries(nodes.map((n) => [n.id, n]));
+  // Link strength relative to how common both keywords are, so big bubbles don't link to everything.
+  let links = netData.links.filter((l) => byId[l.source] && byId[l.target])
+    .map((l) => ({ ...l, a: byId[l.source], b: byId[l.target], w: l.count / Math.sqrt(byId[l.source].count * byId[l.target].count) }));
+  const keep = new Set();
+  for (const n of nodes) links.filter((l) => l.a === n || l.b === n).sort((x, y) => y.w - x.w).slice(0, 3).forEach((l) => keep.add(l));
+  links = links.filter((l) => keep.has(l));
+  layoutMap(nodes, links, W, H);
+  const maxW = Math.max(...links.map((l) => l.w));
+  const lines = links.map((l, i) => `<line class="net-link" data-i="${i}" x1="${l.a.x.toFixed(1)}" y1="${l.a.y.toFixed(1)}" x2="${l.b.x.toFixed(1)}" y2="${l.b.y.toFixed(1)}" stroke-width="${(0.8 + (l.w / maxW) * 4).toFixed(2)}"/>`).join("");
+  // Labels go inside a bubble when they fit (on one or two lines), otherwise below it, in a layer above all bubbles.
+  const labelFor = (n) => {
+    const one = Math.min(13, (n.r * 1.7) / (n.label.length * 0.55));
+    if (one >= 9.5) return `<text class="net-label in" data-id="${esc(n.id)}" x="${n.x.toFixed(1)}" y="${(n.y + 4).toFixed(1)}" font-size="${one.toFixed(1)}">${esc(n.label)}</text>`;
+    const words = n.label.split(" ");
+    if (words.length > 1) {
+      let cut = 1, best = Infinity;
+      for (let i = 1; i < words.length; i++) { const w = Math.max(words.slice(0, i).join(" ").length, words.slice(i).join(" ").length); if (w < best) { best = w; cut = i; } }
+      const two = Math.min(12, (n.r * 1.5) / (best * 0.55));
+      if (two >= 9.5) return `<text class="net-label in" data-id="${esc(n.id)}" x="${n.x.toFixed(1)}" y="${(n.y - two * 0.25).toFixed(1)}" font-size="${two.toFixed(1)}"><tspan x="${n.x.toFixed(1)}">${esc(words.slice(0, cut).join(" "))}</tspan><tspan x="${n.x.toFixed(1)}" dy="1.1em">${esc(words.slice(cut).join(" "))}</tspan></text>`;
+    }
+    return `<text class="net-label out" data-id="${esc(n.id)}" x="${n.x.toFixed(1)}" y="${(n.y + n.r + 11).toFixed(1)}">${esc(n.label)}</text>`;
+  };
+  const bubbles = nodes.map((n) => `<g class="net-node" data-id="${esc(n.id)}" transform="translate(${n.x.toFixed(1)},${n.y.toFixed(1)})" tabindex="0" role="button" aria-label="${esc(n.label)}, ${n.count.toLocaleString()} papers"><circle r="${n.r.toFixed(1)}"/></g>`).join("");
+  const labels = nodes.map(labelFor).join("");
+  body.innerHTML = `<svg class="net" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Keyword network">${lines}${bubbles}<g class="net-labels" aria-hidden="true">${labels}</g></svg><div class="tip" hidden></div>`;
+  const svg = body.querySelector("svg"), tip = body.querySelector(".tip");
+  const focus = (id) => {
+    const n = byId[id];
+    const near = new Set([id]);
+    links.forEach((l) => { if (l.a === n) near.add(l.b.id); if (l.b === n) near.add(l.a.id); });
+    svg.classList.add("focused");
+    svg.querySelectorAll(".net-node, .net-label").forEach((g) => g.classList.toggle("on", near.has(g.dataset.id)));
+    svg.querySelectorAll(".net-link").forEach((ln) => { const l = links[ln.dataset.i]; ln.classList.toggle("on", l.a === n || l.b === n); });
+    const partners = netData.links.filter((l) => l.source === id || l.target === id).sort((a, b) => b.count - a.count).slice(0, 4)
+      .map((l) => byId[l.source === id ? l.target : l.source]).filter(Boolean);
+    tip.innerHTML = `<b>${esc(n.label)}</b><span>${n.count.toLocaleString()} papers</span>${partners.length ? `<span>Often with ${partners.map((p) => esc(p.label)).join(", ")}</span>` : ""}`;
+    tip.hidden = false;
+    const r = svg.getBoundingClientRect();
+    tip.style.left = `${Math.min(Math.max((n.x / W) * r.width, 90), r.width - 90)}px`;
+    tip.style.top = `${((n.y - n.r - 6) / H) * r.height}px`;
+  };
+  const blur = () => { svg.classList.remove("focused"); tip.hidden = true; };
+  const open = (id) => {
+    state.query = byId[id].label;
+    $("#q").value = state.query;
+    location.hash = "#papers";
+    setMode("latest");
+    scrollTo({ top: 0 });
+  };
+  svg.querySelectorAll(".net-node").forEach((g) => {
+    g.addEventListener("pointerenter", () => focus(g.dataset.id));
+    g.addEventListener("focus", () => focus(g.dataset.id));
+    g.addEventListener("click", (e) => {
+      // On touch screens the first tap shows the neighbors; a second tap opens the papers.
+      if (e.pointerType === "touch" && !g.classList.contains("on")) { focus(g.dataset.id); return; }
+      open(g.dataset.id);
+    });
+    g.addEventListener("keydown", (e) => { if (e.key === "Enter") open(g.dataset.id); });
+  });
+  svg.addEventListener("pointerleave", blur);
 }
 
 /* ---------- Faces: free-licensed photos, downloaded from Wikipedia by the Action ---------- */
