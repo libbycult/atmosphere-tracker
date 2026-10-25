@@ -383,3 +383,12 @@ details.abstract p { margin: 6px 0 0; max-width: 68ch; }
 .weblist a { font-weight: 600; text-decoration: none; }
 .weblist a:hover { text-decoration: underline; }
 .weblist span { display: block; font-size: .85rem; color: var(--muted); }
+
+/* ---------- US drought bands (yellow to deep red, D0 to D4) ---------- */
+:root { --d0: #f3d36b; --d1: #eaa23c; --d2: #d8622b; --d3: #b02a1f; --d4: #6b1013; }
+.chart-body .band { stroke: var(--bg); stroke-width: .5; }
+.d0 { --c: var(--d0); } .d1 { --c: var(--d1); } .d2 { --c: var(--d2); } .d3 { --c: var(--d3); } .d4 { --c: var(--d4); }
+.chart-body .band { fill: var(--c); }
+.series-key i.sw { width: 12px; height: 12px; border: 0; border-radius: 3px; background: var(--c); }
+#daily-picker { margin: 4px 0 6px; }
+#daily-picker button { font-size: .85rem; padding: 3px 12px; }

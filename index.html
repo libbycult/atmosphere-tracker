@@ -221,14 +221,26 @@
   <section id="view-charts" class="view" role="tabpanel" aria-labelledby="tab-charts" hidden>
     <p class="intro">The planet's vital signs, updated from NOAA and NASA every 6 hours. Hover or tap a chart to read values.</p>
     <div class="charts" id="climate-charts"></div>
+    <figure class="chart" id="drought" hidden>
+      <div class="chart-head">
+        <div>
+          <h2 class="chart-title">Drought and dry soils across the US</h2>
+          <p class="chart-sub">Share of the contiguous US in drought each week, US Drought Monitor. Drought levels are set mainly from soil moisture, rainfall and streamflow.</p>
+        </div>
+        <div class="chart-stat" id="drought-stat"></div>
+      </div>
+      <div class="series-key" id="drought-legend"></div>
+      <div class="chart-body" id="drought-body"></div>
+    </figure>
     <figure class="chart" id="sst-daily" hidden>
       <div class="chart-head">
         <div>
-          <h2 class="chart-title">Daily sea surface temperature, every year</h2>
-          <p class="chart-sub">World ocean 60°S–60°N, NOAA OISST v2.1 via Climate Reanalyzer. Each gray line is a past year.</p>
+          <h2 class="chart-title" id="sst-daily-title">Day by day, every year</h2>
+          <p class="chart-sub" id="sst-daily-sub"></p>
         </div>
         <div class="chart-stat" id="sst-daily-stat"></div>
       </div>
+      <div class="index-picker" id="daily-picker" role="group" aria-label="Choose a record"></div>
       <div class="series-key" id="sst-daily-legend"></div>
       <div class="chart-body" id="sst-daily-body"></div>
     </figure>

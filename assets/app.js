@@ -831,6 +831,7 @@ const CLIMATE = [
   { key: "co2", title: "Carbon dioxide at Mauna Loa", sub: "Monthly mean, NOAA Global Monitoring Laboratory. The Keeling Curve.", unit: "ppm", dec: 1, label: monthLabel, area: true },
   { key: "temp", title: "Global surface temperature", sub: "Annual anomaly vs. 1951–1980, NASA GISTEMP", unit: "°C", dec: 2, label: yearLabel, zero: true, signed: true },
   { key: "sst", title: "Global sea surface temperature", sub: "Annual anomaly vs. 1961–1990, Met Office HadSST4", unit: "°C", dec: 2, label: yearLabel, zero: true, signed: true },
+  { key: "snow", title: "Northern Hemisphere snow cover", sub: "Monthly land snow extent vs. the 1991–2020 average for that month, Rutgers Global Snow Lab", unit: "million km²", dec: 2, label: monthLabel, zero: true, signed: true },
   { key: "ch4", title: "Global methane", sub: "Monthly mean, NOAA Global Monitoring Laboratory", unit: "ppb", dec: 0, label: monthLabel, area: true },
   { key: "seaice", title: "Arctic sea ice in September", sub: "Mean extent in the month of the yearly minimum, NSIDC Sea Ice Index", unit: "million km²", dec: 2, label: yearLabel, area: true, fromZero: true },
   { key: "oni", title: "El Niño and La Niña", sub: "Oceanic Niño Index since 2000. Above +0.5 °C is El Niño, below −0.5 °C is La Niña.", unit: "°C", dec: 1, label: monthLabel, diverging: true, since: 2000, signed: true },
@@ -969,7 +970,7 @@ function zoomable(fig, body, pts, opt) {
       return `<button type="button" class="zoom-btn" data-range="${r}" aria-pressed="${Boolean(on)}">${label}</button>`;
     }).join("") + (view && !view.preset ? `<button type="button" class="zoom-btn" data-range="0">Reset zoom</button>` : "") +
       `<span class="zoom-hint">Drag across the chart to zoom</span>`;
-    drawChart(body, shown, { ...opt, onZoom: (a, b) => { view = a === null ? null : [a, b]; render(); } });
+    (opt.draw || drawChart)(body, shown, { ...opt, onZoom: (a, b) => { view = a === null ? null : [a, b]; render(); } });
   };
   controls.onclick = (e) => {
     const btn = e.target.closest("[data-range]");
@@ -1090,16 +1091,43 @@ function initCharts() {
   $("#pubs-topic").innerHTML = TOPICS.map((t) => `<option value="${t.id}">${esc(t.label)}</option>`).join("");
   $("#pubs-topic").addEventListener("change", loadPubs);
   fetchJson("data/climate.json").then((d) => { climateData = d || { series: {} }; renderClimate(); });
-  fetchJson("data/sst_daily.json").then((d) => { sstDaily = d; drawSstDaily(); });
+  initDaily();
+  fetchJson("data/drought.json").then((d) => { droughtData = d; renderDrought(); });
   loadPubs();
   let t;
-  addEventListener("resize", () => { clearTimeout(t); t = setTimeout(() => { if (!$("#view-charts").hidden) { renderClimate(); drawSstDaily(); drawPubs(); } }, 150); });
+  addEventListener("resize", () => { clearTimeout(t); t = setTimeout(() => { if (!$("#view-charts").hidden) { renderClimate(); drawSstDaily(); renderDrought(); drawPubs(); } }, 150); });
 }
 
 /* ---------- Daily sea surface temperature, one line per year ---------- */
-let sstDaily = null;
+const DAILY = [
+  { key: "sst", file: "data/sst_daily.json", name: "Sea surface temperature", title: "Daily sea surface temperature, every year", sub: "World ocean 60°S–60°N, NOAA OISST v2.1 via Climate Reanalyzer. Each gray line is a past year.", unit: "°C", dec: 2 },
+  { key: "t2", file: "data/t2_daily.json", name: "Air temperature", title: "Daily global air temperature, every year", sub: "World average temperature 2 m above the surface, ERA5 via Climate Reanalyzer. Each gray line is a past year.", unit: "°C", dec: 2 },
+  { key: "icen", file: "data/seaice_n_daily.json", name: "Arctic sea ice", title: "Daily Arctic sea ice extent, every year", sub: "NSIDC Sea Ice Index. The yearly low comes in September. Each gray line is a past year.", unit: "million km²", dec: 2 },
+  { key: "ices", file: "data/seaice_s_daily.json", name: "Antarctic sea ice", title: "Daily Antarctic sea ice extent, every year", sub: "NSIDC Sea Ice Index. The yearly low comes in February. Each gray line is a past year.", unit: "million km²", dec: 2 },
+];
+const dailyData = {};
+let dailyKey = "sst", sstDaily = null, dailyDef = DAILY[0];
+function initDaily() {
+  $("#daily-picker").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-daily]");
+    if (b) { dailyKey = b.dataset.daily; pickDaily(); }
+  });
+  DAILY.forEach((d) => fetchJson(d.file).then((data) => { if (data?.years) { dailyData[d.key] = data; pickDaily(); } }));
+}
+function pickDaily() {
+  const ready = DAILY.filter((d) => dailyData[d.key]);
+  if (!ready.length) return;
+  if (!dailyData[dailyKey]) dailyKey = ready[0].key;
+  dailyDef = DAILY.find((d) => d.key === dailyKey);
+  sstDaily = dailyData[dailyKey];
+  $("#daily-picker").innerHTML = ready.length > 1 ? ready.map((d) => `<button type="button" data-daily="${d.key}" aria-pressed="${d.key === dailyKey}">${esc(d.name)}</button>`).join("") : "";
+  $("#sst-daily-title").textContent = dailyDef.title;
+  $("#sst-daily-sub").textContent = dailyDef.sub;
+  drawSstDaily();
+}
 function drawSstDaily() {
   const fig = $("#sst-daily"), body = $("#sst-daily-body");
+  const { unit, dec } = dailyDef;
   const years = Object.keys(sstDaily?.years || {}).sort();
   if (!years.length) return;
   fig.hidden = false;
@@ -1111,23 +1139,24 @@ function drawSstDaily() {
   const m = { l: 46, r: 14, t: 12, b: 26 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
   const all = series.flatMap((s) => s.pts.map((p) => p[1])).concat(clim.map((p) => p[1]));
   let yMin = Math.min(...all), yMax = Math.max(...all);
-  const yt = niceTicks(yMin - 0.05, yMax + 0.05, 4);
-  yMin = yt[0]; yMax = yt[yt.length - 1];
+  const yt0 = niceTicks(yMin, yMax, 4), st = yt0.length > 1 ? yt0[1] - yt0[0] : 1;
+  yMin = Math.floor(yMin / st) * st; yMax = Math.ceil(yMax / st) * st;
+  const yt = niceTicks(yMin, yMax, 4);
   const X = (d) => m.l + ((d - 1) / 365) * pw, Y = (v) => m.t + (1 - (v - yMin) / (yMax - yMin)) * ph;
   const path = (pts) => pts.map(([d, v], i) => `${i ? "L" : "M"}${X(d).toFixed(1)},${Y(v).toFixed(1)}`).join("");
   const starts = [1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335];
-  const grid = yt.map((v) => `<line class="grid" x1="${m.l}" x2="${m.l + pw}" y1="${Y(v)}" y2="${Y(v)}"/><text class="tick" x="${m.l - 8}" y="${Y(v) + 4}" text-anchor="end">${v.toFixed(1)}</text>`).join("");
+  const grid = yt.map((v) => `<line class="grid" x1="${m.l}" x2="${m.l + pw}" y1="${Y(v)}" y2="${Y(v)}"/><text class="tick" x="${m.l - 8}" y="${Y(v) + 4}" text-anchor="end">${fmt(v, v % 1 ? 1 : 0)}</text>`).join("");
   const xt = starts.filter((_, i) => pw > 500 || i % 2 === 0).map((d) => `<text class="tick" x="${X(d + 14)}" y="${H - 6}" text-anchor="middle">${MONTHS[starts.indexOf(d)]}</text>`).join("");
   const past = series.filter((s) => s !== cur && s !== prev).map((s) => `<path class="spag" d="${path(s.pts)}"/>`).join("");
   const climLine = clim.length ? `<path class="spag-clim" d="${path(clim)}"/>` : "";
-  body.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Daily world sea surface temperature by year">
+  body.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${esc(dailyDef.title)}">
       ${grid}${past}${climLine}${prev ? `<path class="spag-prev" d="${path(prev.pts)}"/>` : ""}<path class="line" d="${path(cur.pts)}"/>${xt}
       <line class="cross" x1="0" x2="0" y1="${m.t}" y2="${m.t + ph}" visibility="hidden"/>
       <rect class="hit" x="${m.l}" y="${m.t}" width="${pw}" height="${ph}"/>
     </svg><div class="tip" hidden></div>`;
   const [ld, lv] = cur.pts[cur.pts.length - 1];
   const dayName = (d) => { const i = starts.filter((s) => s <= d).length - 1; return `${MONTHS[i]} ${d - starts[i] + 1}`; };
-  $("#sst-daily-stat").innerHTML = `<b>${lv.toFixed(2)}</b> °C<span>${esc(dayName(ld))}, ${cur.year}</span>`;
+  $("#sst-daily-stat").innerHTML = `<b>${lv.toFixed(dec)}</b> ${esc(unit)}<span>${esc(dayName(ld))}, ${cur.year}</span>`;
   $("#sst-daily-legend").innerHTML = `<span><i class="k-cur"></i>${cur.year}</span>${prev ? `<span><i class="k-prev"></i>${prev.year}</span>` : ""}<span><i class="k-past"></i>${series[0].year}–${(prev || cur).year - 1}</span>${clim.length ? `<span><i class="k-clim"></i>${esc(sstDaily.climatology.name || "Average")}</span>` : ""}`;
   const svg = body.querySelector("svg"), tip = body.querySelector(".tip"), cross = svg.querySelector(".cross"), hit = svg.querySelector(".hit");
   const at = (s, d) => s?.pts.find((p) => p[0] === d)?.[1];
@@ -1136,12 +1165,81 @@ function drawSstDaily() {
     const d = Math.min(366, Math.max(1, Math.round(((ev.clientX - r.left) / r.width * W - m.l) / pw * 365 + 1)));
     cross.setAttribute("x1", X(d)); cross.setAttribute("x2", X(d)); cross.setAttribute("visibility", "visible");
     const rows = [[cur.year, at(cur, d)], [prev?.year, at(prev, d)], ["Average", clim.find((p) => p[0] === d)?.[1]]].filter(([, v]) => v !== undefined);
-    tip.innerHTML = `<span>${esc(dayName(d))}</span>` + rows.map(([k, v]) => `<b>${k}: ${v.toFixed(2)} °C</b>`).join("");
+    tip.innerHTML = `<span>${esc(dayName(d))}</span>` + rows.map(([k, v]) => `<b>${k}: ${v.toFixed(dec)} ${esc(unit)}</b>`).join("");
     tip.hidden = false;
     tip.style.left = `${Math.min(Math.max((X(d) / W) * r.width, 70), r.width - 70)}px`;
     tip.style.top = `${(m.t + 10) / H * r.height}px`;
   });
   hit.addEventListener("pointerleave", () => { tip.hidden = true; cross.setAttribute("visibility", "hidden"); });
+}
+
+/* ---------- US drought, stacked by severity ---------- */
+const DROUGHT_LEVELS = [
+  ["D0", "Abnormally dry"], ["D1", "Moderate drought"], ["D2", "Severe drought"], ["D3", "Extreme drought"], ["D4", "Exceptional drought"],
+];
+let droughtData = null;
+const decYear = (iso) => { const d = new Date(iso + "T12:00:00Z"), y = d.getUTCFullYear(); return y + (d - Date.UTC(y, 0, 1)) / (365.25 * 86400000); };
+function renderDrought() {
+  const weeks = droughtData?.weeks;
+  if (!weeks?.length) return;
+  const fig = $("#drought");
+  fig.hidden = false;
+  const pts = weeks.map((w) => [decYear(w[0]), ...w.slice(1), w[0]]);
+  const last = weeks[weeks.length - 1];
+  $("#drought-stat").innerHTML = `<b>${last[2].toFixed(0)}%</b> in drought<span>Week of ${esc(formatDate(last[0]))}</span>`;
+  $("#drought-legend").innerHTML = DROUGHT_LEVELS.map(([k, n], i) => `<span><i class="sw d${i}"></i>${k} ${esc(n)}</span>`).join("");
+  zoomable(fig, $("#drought-body"), pts, { title: "US drought", draw: drawStack, initial: 10 });
+}
+// Stacked area of cumulative percentages [x, D0, D1, D2, D3, D4, isoDate]; each band is "this level or worse".
+function drawStack(body, pts, opt) {
+  const W = Math.max(280, body.clientWidth), H = 240;
+  const m = { l: 40, r: 14, t: 12, b: 26 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
+  const xMin = pts[0][0], xMax = pts[pts.length - 1][0];
+  const X = (x) => m.l + ((x - xMin) / (xMax - xMin || 1)) * pw, Y = (v) => m.t + (1 - v / 100) * ph;
+  const bands = [1, 2, 3, 4, 5].map((k, i) => {
+    const top = pts.map((p) => `${X(p[0]).toFixed(1)},${Y(p[k]).toFixed(1)}`).join("L");
+    return `<path class="band d${i}" d="M${top}L${X(xMax)},${Y(0)}L${X(xMin)},${Y(0)}Z"/>`;
+  }).join("");
+  const grid = [0, 25, 50, 75, 100].map((v) => `<line class="grid" x1="${m.l}" x2="${m.l + pw}" y1="${Y(v)}" y2="${Y(v)}"/><text class="tick" x="${m.l - 8}" y="${Y(v) + 4}" text-anchor="end">${v}%</text>`).join("");
+  const xt = niceTicks(xMin, xMax, Math.max(3, Math.floor(pw / 90))).filter((v) => v >= xMin && v <= xMax && (xMax - xMin < 4 || v % 1 === 0))
+    .map((v) => `<text class="tick" x="${X(v)}" y="${H - 6}" text-anchor="middle">${Math.round(v)}</text>`).join("");
+  body.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${esc(opt.title)}">
+      ${bands}${grid}${xt}
+      <line class="cross" x1="0" x2="0" y1="${m.t}" y2="${m.t + ph}" visibility="hidden"/>
+      <rect class="brush" x="0" y="${m.t}" width="0" height="${ph}" visibility="hidden"/>
+      <rect class="hit" x="${m.l}" y="${m.t}" width="${pw}" height="${ph}"/>
+    </svg><div class="tip" hidden></div>`;
+  const svg = body.querySelector("svg"), tip = body.querySelector(".tip"), cross = svg.querySelector(".cross");
+  const hit = svg.querySelector(".hit"), brush = svg.querySelector(".brush");
+  const toPx = (ev) => { const r = svg.getBoundingClientRect(); return Math.min(m.l + pw, Math.max(m.l, ((ev.clientX - r.left) / r.width) * W)); };
+  const toX = (px) => xMin + ((px - m.l) / pw) * (xMax - xMin);
+  const show = (ev) => {
+    const x = toX(toPx(ev)), r = svg.getBoundingClientRect();
+    const p = pts.reduce((a, b) => (Math.abs(b[0] - x) < Math.abs(a[0] - x) ? b : a));
+    cross.setAttribute("x1", X(p[0])); cross.setAttribute("x2", X(p[0])); cross.setAttribute("visibility", "visible");
+    tip.innerHTML = `<span>Week of ${esc(formatDate(p[6]))}</span>` + DROUGHT_LEVELS.map(([k], i) => `<b>${k}${i < 4 ? "+" : ""}: ${p[i + 1].toFixed(0)}%</b>`).reverse().join("");
+    tip.hidden = false;
+    tip.style.left = `${Math.min(Math.max((X(p[0]) / W) * r.width, 70), r.width - 70)}px`;
+    tip.style.top = `${((m.t + ph * 0.6) / H) * r.height}px`;
+  };
+  const hide = () => { tip.hidden = true; cross.setAttribute("visibility", "hidden"); };
+  let drag = null;
+  hit.addEventListener("pointerdown", (ev) => { show(ev); drag = toPx(ev); hit.setPointerCapture(ev.pointerId); });
+  hit.addEventListener("pointermove", (ev) => {
+    if (drag === null) { show(ev); return; }
+    const px = toPx(ev);
+    brush.setAttribute("x", Math.min(drag, px)); brush.setAttribute("width", Math.abs(px - drag)); brush.setAttribute("visibility", "visible");
+    hide();
+  });
+  hit.addEventListener("pointerup", (ev) => {
+    if (drag === null) return;
+    const px = toPx(ev), start = drag;
+    drag = null;
+    brush.setAttribute("visibility", "hidden");
+    if (Math.abs(px - start) > 10) opt.onZoom(toX(Math.min(px, start)), toX(Math.max(px, start)));
+  });
+  hit.addEventListener("pointerleave", () => { if (drag === null) hide(); });
+  hit.addEventListener("dblclick", () => opt.onZoom(null, null));
 }
 
 /* ---------- Explorer: climate indices ---------- */

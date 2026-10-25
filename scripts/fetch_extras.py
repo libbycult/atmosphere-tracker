@@ -33,6 +33,21 @@ SST_DAILY_URLS = [  # Climate Reanalyzer, NOAA OISST v2.1 world (60S-60N) daily 
     "https://climatereanalyzer.org/clim/sst_daily/json_2clim/oisst2.1_world2_sst_day.json",
     "https://climatereanalyzer.org/clim/sst_daily/json/oisst2.1_world2_sst_day.json",
 ]
+T2_DAILY_URLS = [  # Climate Reanalyzer, ERA5 world daily mean 2 m air temperature by year
+    "https://climatereanalyzer.org/clim/t2_daily/json_2clim/era5_world_t2_day.json",
+    "https://climatereanalyzer.org/clim/t2_daily/json/era5_world_t2_day.json",
+]
+# NSIDC Sea Ice Index daily extent, "Year, Month, Day, Extent, Missing, Source" rows; version bumps over time
+SEAICE_DAILY_URLS = {
+    hemi: [f"https://{host}/NOAA/G02135/{name}/daily/data/{hemi.upper()}_seaice_extent_daily_v{v}.csv"
+           for v in ("4.0", "3.0")
+           for host in ("noaadata.apps.nsidc.org", "masie_web.apps.nsidc.org/pub/DATASETS")]
+    for hemi, name in (("n", "north"), ("s", "south"))
+}
+SNOW_URL = "https://climate.rutgers.edu/snowcover/190km/files/moncov.nhland.txt"  # Rutgers Global Snow Lab, km²
+# US Drought Monitor: weekly percent of the contiguous US in each category; D0..D4 are cumulative ("or worse")
+DROUGHT_URL = ("https://usdmdataservices.unl.edu/api/USStatistics/GetDroughtSeverityStatisticsByAreaPercent"
+               "?aoi=us&startdate=1/1/2000&enddate={end}&statisticsType=1")
 # NOAA PSL standard-format monthly indices: "year v1 ... v12" rows, missing values like -99.99 / -999
 PSL_INDICES = {
     "qbo": "https://psl.noaa.gov/data/correlation/qbo.data",
@@ -252,8 +267,8 @@ def hadsst(kind):
     return pts
 
 
-def sst_daily():
-    for url in SST_DAILY_URLS:
+def sst_daily(urls=SST_DAILY_URLS):
+    for url in urls:
         try:
             rows = json.loads(fetch(url))
         except Exception as exc:
@@ -269,7 +284,78 @@ def sst_daily():
                 climatology = {"name": name, "data": vals}
         if years:
             return {"years": years, "climatology": climatology}
-    raise ValueError("no daily SST source could be read")
+    raise ValueError("no daily source could be read")
+
+
+def seaice_daily(hemi):
+    """Daily extent as {year: [366 values]} plus a 1991-2020 average, million km²."""
+    for url in SEAICE_DAILY_URLS[hemi]:
+        try:
+            text = fetch(url).decode()
+        except Exception as exc:
+            print(f"WARN sea ice daily {url}: {exc}", file=sys.stderr)
+            continue
+        years = {}
+        for line in text.splitlines():
+            parts = [p.strip() for p in line.split(",")]
+            try:
+                d = date(int(parts[0]), int(parts[1]), int(parts[2]))
+                extent = float(parts[3])
+            except (IndexError, ValueError):
+                continue
+            if extent <= 0:
+                continue
+            years.setdefault(str(d.year), [None] * 366)[d.timetuple().tm_yday - 1] = round(extent, 3)
+        if not years:
+            continue
+        # Before 1988 readings were every other day; fill single gaps so the lines are continuous.
+        for vals in years.values():
+            for i in range(1, 365):
+                if vals[i] is None and vals[i - 1] is not None and vals[i + 1] is not None:
+                    vals[i] = round((vals[i - 1] + vals[i + 1]) / 2, 3)
+        base = [years[str(y)] for y in range(1991, 2021) if str(y) in years]
+        clim = []
+        for i in range(366):
+            vals = [b[i] for b in base if b[i] is not None]
+            clim.append(round(sum(vals) / len(vals), 3) if vals else None)
+        return {"years": years, "climatology": {"name": "1991–2020 average", "data": clim}}
+    raise ValueError("no sea ice daily file could be read")
+
+
+def snow():
+    """Northern Hemisphere land snow cover as monthly anomaly vs. 1991-2020, million km²."""
+    rows = []
+    for line in fetch(SNOW_URL).decode().splitlines():
+        parts = line.split()
+        if len(parts) == 3 and parts[0].isdigit():
+            rows.append((int(parts[0]), int(parts[1]), int(parts[2]) / 1e6))
+    normals = {}
+    for y, m, v in rows:
+        if 1991 <= y <= 2020:
+            normals.setdefault(m, []).append(v)
+    normals = {m: sum(v) / len(v) for m, v in normals.items()}
+    pts = [[round(y + (m - 0.5) / 12, 3), round(v - normals[m], 3)] for y, m, v in rows if m in normals]
+    if not pts:
+        raise ValueError("no snow rows")
+    return pts
+
+
+def drought():
+    end = date.today()
+    text = fetch(DROUGHT_URL.format(end=f"{end.month}/{end.day}/{end.year}")).decode()
+    weeks = []
+    for line in text.splitlines()[1:]:
+        parts = line.split(",")
+        try:
+            d = parts[0].strip()
+            weeks.append([f"{d[:4]}-{d[4:6]}-{d[6:8]}"] + [round(float(x), 2) for x in parts[3:8]])
+        except (IndexError, ValueError):
+            continue
+    if not weeks:
+        raise ValueError("no drought rows")
+    weeks.sort()
+    write("drought.json", {"updated": datetime.now(timezone.utc).isoformat(), "levels": ["D0", "D1", "D2", "D3", "D4"], "weeks": weeks})
+    print(f"Wrote {len(weeks)} drought weeks")
 
 
 def psl_index(url):
@@ -333,6 +419,7 @@ def climate():
         ("oni", oni),
         ("seaice", seaice),
         ("sst", lambda: hadsst("annual")),
+        ("snow", snow),
     ]:
         try:
             series[key] = getter()
@@ -342,12 +429,18 @@ def climate():
     if not series:
         raise ValueError("no climate series fetched")
     write("climate.json", {"updated": datetime.now(timezone.utc).isoformat(), "series": series})
-    try:
-        daily = sst_daily()
-        write("sst_daily.json", {"updated": datetime.now(timezone.utc).isoformat(), **daily})
-        print(f"sst daily: {len(daily['years'])} years")
-    except Exception as exc:
-        print(f"WARN sst daily: {exc}", file=sys.stderr)
+    for name, getter in [
+        ("sst_daily.json", sst_daily),
+        ("t2_daily.json", lambda: sst_daily(T2_DAILY_URLS)),
+        ("seaice_n_daily.json", lambda: seaice_daily("n")),
+        ("seaice_s_daily.json", lambda: seaice_daily("s")),
+    ]:
+        try:
+            daily = getter()
+            write(name, {"updated": datetime.now(timezone.utc).isoformat(), **daily})
+            print(f"{name}: {len(daily['years'])} years")
+        except Exception as exc:
+            print(f"WARN {name}: {exc}", file=sys.stderr)
 
 
 def summarize():
@@ -366,6 +459,8 @@ def summarize():
         elif isinstance(obj, dict) and isinstance(obj.get("years"), dict):
             ys = sorted(obj["years"])
             out[f.name] = {"years": [ys[0], ys[-1]] if ys else [], "climatology": bool(obj.get("climatology"))}
+        elif isinstance(obj, dict) and isinstance(obj.get("weeks"), list):
+            out[f.name] = [len(obj["weeks"]), obj["weeks"][-1] if obj["weeks"] else None]
         elif isinstance(obj, dict) and isinstance(obj.get("items"), list):
             tags = {}
             for i in obj["items"]:
@@ -379,7 +474,7 @@ def summarize():
 def main():
     DATA.mkdir(exist_ok=True)
     failures = 0
-    steps = (co2, grants, storms, climate, indices)
+    steps = (co2, grants, storms, climate, indices, drought)
     for step in steps:
         try:
             step()
