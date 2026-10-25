@@ -17,6 +17,10 @@ USER_AGENT = "The Lapse Rate data collector (+https://github.com/libbycult/atmos
 
 CO2_MONTHLY_URL = "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.txt"
 CH4_URL = "https://gml.noaa.gov/webdata/ccgg/trends/ch4/ch4_mm_gl.txt"
+N2O_URL = "https://gml.noaa.gov/webdata/ccgg/trends/n2o/n2o_mm_gl.txt"
+SF6_URL = "https://gml.noaa.gov/webdata/ccgg/trends/sf6/sf6_mm_gl.txt"
+# NOAA NCEI Climate at a Glance, contiguous US, January-December annual values
+CAG_URL = "https://www.ncei.noaa.gov/access/monitoring/climate-at-a-glance/national/time-series/110/{var}/12/12/1895-{year}/data.json"
 GISTEMP_URL = "https://data.giss.nasa.gov/gistemp/tabledata_v4/GLB.Ts+dSST.csv"
 ONI_URL = "https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt"
 SEAICE_URLS = [  # NSIDC Sea Ice Index, September (annual minimum) extent; version bumps over time
@@ -57,6 +61,16 @@ PSL_INDICES = {
     "soi": "https://psl.noaa.gov/data/correlation/soi.data",
     "amo": "https://psl.noaa.gov/data/correlation/amon.us.data",
     "nino34": "https://psl.noaa.gov/data/correlation/nina34.anom.data",
+    "mei": "https://psl.noaa.gov/enso/mei/data/meiv2.data",
+    "pna": "https://psl.noaa.gov/data/correlation/pna.data",
+    "epo": "https://psl.noaa.gov/data/correlation/epo.data",
+    "wp": "https://psl.noaa.gov/data/correlation/wp.data",
+    "ea": "https://psl.noaa.gov/data/correlation/ea.data",
+    "aao": "https://psl.noaa.gov/data/correlation/aao.data",
+    "tna": "https://psl.noaa.gov/data/correlation/tna.data",
+    "sahel": "https://psl.noaa.gov/data/correlation/sahelrain.data",
+    "india": "https://psl.noaa.gov/data/correlation/indiamon.data",
+    "solar": "https://psl.noaa.gov/data/correlation/solar.data",
 }
 SUNSPOT_URL = "https://www.sidc.be/SILSO/INFO/snmtotcsv.php"
 STORMS_URL = "https://www.nhc.noaa.gov/CurrentStorms.json"
@@ -238,6 +252,16 @@ def seaice():
         if pts:
             return pts
     raise ValueError("no sea ice file could be read")
+
+
+def us_annual(var):
+    year = date.today().year
+    data = json.loads(fetch(CAG_URL.format(var=var, year=year))).get("data", {})
+    pts = [[int(k[:4]), round(float(v["value"]), 2)] for k, v in sorted(data.items())
+           if isinstance(v, dict) and v.get("value") is not None and float(v["value"]) > -90]
+    if not pts:
+        raise ValueError(f"no US {var} rows")
+    return pts
 
 
 def first_float(text):
@@ -425,6 +449,10 @@ def climate():
         ("seaice", seaice),
         ("sst", lambda: hadsst("annual")),
         ("snow", snow),
+        ("n2o", lambda: noaa_monthly(N2O_URL, 3)),
+        ("sf6", lambda: noaa_monthly(SF6_URL, 3)),
+        ("us_temp", lambda: us_annual("tavg")),
+        ("us_precip", lambda: us_annual("pcp")),
     ]:
         try:
             series[key] = getter()
@@ -434,6 +462,7 @@ def climate():
     if not series:
         raise ValueError("no climate series fetched")
     write("climate.json", {"updated": datetime.now(timezone.utc).isoformat(), "series": series})
+    dailies = {}
     for name, getter in [
         ("sst_daily.json", sst_daily),
         ("t2_daily.json", lambda: sst_daily(T2_DAILY_URLS)),
@@ -444,8 +473,15 @@ def climate():
             daily = getter()
             write(name, {"updated": datetime.now(timezone.utc).isoformat(), **daily})
             print(f"{name}: {len(daily['years'])} years")
+            dailies[name] = daily
         except Exception as exc:
             print(f"WARN {name}: {exc}", file=sys.stderr)
+    north, south = dailies.get("seaice_n_daily.json"), dailies.get("seaice_s_daily.json")
+    if north and south:
+        add = lambda a, b: [round(x + y, 3) if x is not None and y is not None else None for x, y in zip(a, b)]  # noqa: E731
+        years = {y: add(v, south["years"][y]) for y, v in north["years"].items() if y in south["years"]}
+        clim = {"name": "1991–2020 average", "data": add(north["climatology"]["data"], south["climatology"]["data"])}
+        write("seaice_g_daily.json", {"updated": datetime.now(timezone.utc).isoformat(), "years": years, "climatology": clim})
 
 
 def summarize():
