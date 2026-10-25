@@ -1,4 +1,4 @@
-// The Lapse Rate: papers come live from the OpenAlex API. Jobs, funding calls and the CO2 reading
+// Atmosphere Tracker: papers come live from the OpenAlex API. Jobs, funding calls and the CO2 reading
 // come from files in data/ that a GitHub Action rebuilds daily (see scripts/).
 
 const OPENALEX = "https://api.openalex.org/works";
@@ -99,7 +99,7 @@ function showTab() {
   }
   const link = $(`#tab-${tab}`);
   $("#page-title").textContent = link.textContent;
-  document.title = tab === "papers" ? "The Lapse Rate" : `${link.textContent} · The Lapse Rate`;
+  document.title = tab === "papers" ? "Atmosphere Tracker" : `${link.textContent} · Atmosphere Tracker`;
   for (const menu of document.querySelectorAll(".menu")) {
     const here = menu.contains(link);
     menu.classList.toggle("active", here);
@@ -186,7 +186,7 @@ document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-csv]");
   if (!b || !csvSources[b.dataset.csv]) return;
   const [header, rows] = csvSources[b.dataset.csv]();
-  download(`lapse-rate-${b.dataset.csv}.csv`, [header, ...rows].map((r) => r.join(",")).join("\n"), "text/csv");
+  download(`atmosphere-tracker-${b.dataset.csv}.csv`, [header, ...rows].map((r) => r.join(",")).join("\n"), "text/csv");
 });
 
 /* ---------- Papers ---------- */

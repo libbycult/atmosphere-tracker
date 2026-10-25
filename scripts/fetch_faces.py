@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT_DIR = ROOT / "faces"
-USER_AGENT = "The Lapse Rate photo collector (+https://github.com/libbycult/atmosphere-tracker)"
+USER_AGENT = "Atmosphere Tracker photo collector (+https://github.com/libbycult/atmosphere-tracker)"
 API = "https://en.wikipedia.org/w/api.php"
 THUMB = 500  # Wikimedia serves a fixed set of thumbnail widths; 500 is one of them
 
