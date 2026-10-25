@@ -1396,12 +1396,6 @@ function renderExplorer() {
 
 /* ---------- Blogs ---------- */
 const BLOGS = [
-  { who: "Kerry Emanuel", where: "MIT", title: "Essays in Boston Review", url: "https://www.bostonreview.net/authors/kerry-emanuel/", star: true,
-    note: "The hurricane scientist on climate risk, written with the dry wit of someone who has explained it to Congress more than once. “There is a lot we don't know about climate change, but what we do know should motivate us to action.”" },
-  { who: "Kerry Emanuel", where: "MIT", title: "Climate Science, Risk & Solutions", url: "https://climateprimer.mit.edu/", star: true,
-    note: "His free primer for everyone: the whole climate story, start to finish, in plain language." },
-  { who: "Kerry Emanuel", where: "MIT", title: "10 Years Since Katrina: The Climate Connection Is Clear", url: "https://www.livescience.com/51960-10-years-since-katrina-the-climate-connection-is-clear.html", star: true,
-    note: "An op-ed on what Katrina taught us, from the person who wrote the book on hurricane intensity (literally: Divine Wind)." },
   { who: "Eric Berger and Matt Lanza", where: "Houston", title: "Space City Weather", url: "https://spacecityweather.com/",
     note: "Hype-free Houston forecasts with jokes. Their post titles read like “Suntober continues for a bit longer, along with a bit more humidity.”" },
   { who: "Isaac Held", where: "NOAA GFDL / Princeton", title: "Isaac Held's Blog", url: "https://www.gfdl.noaa.gov/blog/isaac-held/",
@@ -1527,13 +1521,7 @@ async function loadFaces() {
   list.innerHTML = `<li class="status">Loading photos…</li>`;
   const [auto, manual] = await Promise.all([fetchJson("data/faces.json"), fetchJson("data/faces-manual.json")]);
   const faces = [...(auto?.faces || []), ...(manual?.faces || [])];
-  // By special request, Kerry Emanuel goes last and is bigger than everyone else.
-  faces.sort((a, b) => (a.name === "Kerry Emanuel") - (b.name === "Kerry Emanuel"));
-  list.innerHTML = faces.length ? faces.map((f) => f.name === "Kerry Emanuel" ? `<li class="face giant">
-      <a href="${esc(f.full)}" target="_blank" rel="noopener"><img src="${esc(f.full)}" onerror="this.onerror=null;this.src='${esc(f.src)}'" alt="${esc(f.name)}"></a>
-      <b>${esc(f.name)}</b>
-      <a class="credit" href="${esc(f.credit)}" target="_blank" rel="noopener">Photo credit and license</a>
-    </li>` : `<li class="face">
+  list.innerHTML = faces.length ? faces.map((f) => `<li class="face">
       <a href="${esc(f.full)}" target="_blank" rel="noopener"><img src="${esc(f.src)}" alt="${esc(f.name)}" loading="lazy"></a>
       <b>${esc(f.name)}</b>
       ${f.credit ? `<a class="credit" href="${esc(f.credit)}" target="_blank" rel="noopener">Photo credit and license</a>` : ""}

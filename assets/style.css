@@ -401,8 +401,6 @@ details.abstract p { margin: 6px 0 0; max-width: 68ch; }
 .face span { font-size: .82rem; color: var(--muted); }
 .face .credit { font-size: .75rem; color: var(--muted); }
 .faces .status { grid-column: 1 / -1; }
-.face.giant { grid-column: span 2; }
-.face.giant b { font-size: 1.2rem; }
 
 /* ---------- Header tools, dropdown menus and page title (kept understated) ---------- */
 .brand { font-size: clamp(2.2rem, 7vw, 3rem); font-weight: 600; line-height: 1.1; letter-spacing: 0; }
