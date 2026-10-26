@@ -35,9 +35,6 @@ jobs:
       - name: Build the keyword network
         run: python scripts/fetch_network.py
         continue-on-error: true
-      - name: Download scientist photos
-        run: python scripts/fetch_faces.py
-        continue-on-error: true
       - name: Collect CO2, funding calls and active storms
         run: python scripts/fetch_extras.py
         continue-on-error: true

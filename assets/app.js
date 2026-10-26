@@ -87,7 +87,7 @@ const state = Object.assign(
 let saved = load("atmo.saved", {}); // OpenAlex id -> work, the viewer's reading list
 
 /* ---------- Tabs ---------- */
-const TABS = ["papers", "scientists", "map", "blogs", "legends", "faces", "sky", "charts", "explorer", "jobs", "funding", "events", "resources", "social"];
+const TABS = ["papers", "scientists", "map", "blogs", "legends", "sky", "charts", "explorer", "jobs", "funding", "events", "resources", "social"];
 const loaded = {};
 function showTab() {
   const hash = location.hash.slice(1);
@@ -108,7 +108,7 @@ function showTab() {
   closeMenus();
   if (!loaded[tab]) {
     loaded[tab] = true;
-    ({ scientists: initScientists, sky: loadSky, charts: initCharts, jobs: loadJobs, funding: loadGrants, events: renderEvents, resources: renderResources, social: renderSocial, legends: renderLegends, explorer: initExplorer, blogs: renderBlogs, faces: loadFaces, map: initMap })[tab]?.();
+    ({ scientists: initScientists, sky: loadSky, charts: initCharts, jobs: loadJobs, funding: loadGrants, events: renderEvents, resources: renderResources, social: renderSocial, legends: renderLegends, explorer: initExplorer, blogs: renderBlogs, map: initMap })[tab]?.();
   }
   updateAltimeter();
   countView(tab);
@@ -1688,19 +1688,6 @@ function drawMap() {
     g.addEventListener("keydown", (e) => { if (e.key === "Enter") open(g.dataset.id); });
   });
   svg.addEventListener("pointerleave", blur);
-}
-
-/* ---------- Faces: free-licensed photos, downloaded from Wikipedia by the Action ---------- */
-async function loadFaces() {
-  const list = $("#face-list");
-  list.innerHTML = `<li class="status">Loading photos…</li>`;
-  const [auto, manual] = await Promise.all([fetchJson("data/faces.json"), fetchJson("data/faces-manual.json")]);
-  const faces = [...(auto?.faces || []), ...(manual?.faces || [])];
-  list.innerHTML = faces.length ? faces.map((f) => `<li class="face">
-      <a href="${esc(f.full)}" target="_blank" rel="noopener"><img src="${esc(f.src)}" alt="${esc(f.name)}" loading="lazy"></a>
-      <b>${esc(f.name)}</b>
-      ${f.credit ? `<a class="credit" href="${esc(f.credit)}" target="_blank" rel="noopener">Photo credit and license</a>` : ""}
-    </li>`).join("") : `<li class="status">Photos are on their way; check back in a few minutes.</li>`;
 }
 
 /* ---------- CO2 ---------- */
