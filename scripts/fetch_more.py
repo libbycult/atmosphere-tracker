@@ -18,14 +18,25 @@ USER_AGENT = "Atmosphere Scholar data collector (+https://github.com/libbycult/a
 OPENALEX = "https://api.openalex.org/works"
 CMR = "https://cmr.earthdata.nasa.gov/search/collections.json"
 INDICO = "https://events.ecmwf.int/export/categ/{cat}.json"
-ECMWF_CATEGORIES = {9: "ECMWF seminar"}
+ECMWF_CATEGORIES = {0: "ECMWF"}  # 0 is the whole calendar; each event names its own category
 # Same fields the Papers tab asks for, so the site can draw these with the same paper cards.
 WORK_FIELDS = ("id,doi,title,publication_date,authorships,primary_location,open_access,abstract_inverted_index,"
                "cited_by_count,type,primary_topic,biblio,citation_normalized_percentile,countries_distinct_count,"
                "institutions_distinct_count,is_retracted,funders")
+# Outside images Sky Now could show; the site uses the first one in each group that answers.
 PROBES = {
-    "airnow_aqi": "https://files.airnowtech.org/airnow/today/cur_aqi_usa.jpg",
-    "goes_fire": "https://cdn.star.nesdis.noaa.gov/GOES19/ABI/CONUS/FireTemperature/1250x750.jpg",
+    "aqi": [
+        "https://files.airnowtech.org/airnow/today/cur_aqi_usa.jpg",
+        "https://files.airnowtech.org/airnow/today/aqi_usa.jpg",
+        "https://files.airnowtech.org/airnow/today/cur_aqi_usa_pm25.jpg",
+        "https://files.airnowtech.org/airnow/today/anim_aqi_usa.gif",
+        "https://files.airnowtech.org/airnow/today/cur_aqi_conus.jpg",
+    ],
+    "smoke": [
+        "https://www.ospo.noaa.gov/data/land/fire/smoke.jpg",
+        "https://www.ospo.noaa.gov/data/land/fire/currenthms.jpg",
+    ],
+    "fire": ["https://cdn.star.nesdis.noaa.gov/GOES19/ABI/CONUS/FireTemperature/1250x750.jpg"],
 }
 
 
@@ -137,6 +148,7 @@ def seminars():
                 "speaker": ", ".join(p.get("fullName", "") for p in ev.get("chairs") or [] if p.get("fullName")),
                 "url": ev.get("url"),
                 "host": kind,
+                "category": ev.get("category"),
             })
     items.sort(key=lambda i: (i["date"] or "", i["time"]))
     write("seminars.json", {"updated": now(), "items": items})
@@ -144,15 +156,19 @@ def seminars():
 
 
 def probes():
-    out = {}
-    for name, url in PROBES.items():
-        try:
-            req = urllib.request.Request(url, method="HEAD", headers={"User-Agent": USER_AGENT})
-            with urllib.request.urlopen(req, timeout=30) as res:
-                out[name] = res.status
-        except Exception as exc:
-            out[name] = str(exc)[:80]
-    write("probes.json", out)
+    out, tried = {}, {}
+    for name, urls in PROBES.items():
+        for url in urls:
+            try:
+                req = urllib.request.Request(url, method="HEAD", headers={"User-Agent": USER_AGENT})
+                with urllib.request.urlopen(req, timeout=30) as res:
+                    tried[url] = res.status
+                    if res.status == 200 and "image" in res.headers.get("Content-Type", ""):
+                        out[name] = url
+                        break
+            except Exception as exc:
+                tried[url] = str(exc)[:80]
+    write("probes.json", {"ok": out, "tried": tried})
 
 
 def main():

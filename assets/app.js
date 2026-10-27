@@ -864,8 +864,9 @@ function renderSatellites() {
 }
 
 const AQ_MAPS = [
-  { name: "US air quality now", note: "Current AQI from AirNow", img: "https://files.airnowtech.org/airnow/today/cur_aqi_usa.jpg", page: "https://www.airnow.gov/" },
-  { name: "Fires from space", note: "GOES-East fire temperature; hot spots glow red and yellow", img: "https://cdn.star.nesdis.noaa.gov/GOES19/ABI/CONUS/FireTemperature/1250x750.jpg", page: "https://www.star.nesdis.noaa.gov/GOES/conus_band.php?sat=G19&band=FireTemperature&length=12" },
+  { key: "aqi", name: "US air quality now", note: "Current AQI from AirNow", page: "https://www.airnow.gov/" },
+  { key: "smoke", name: "Smoke plumes", note: "NOAA Hazard Mapping System analysis", page: "https://www.ospo.noaa.gov/products/land/hms.html" },
+  { key: "fire", name: "Fires from space", note: "GOES-East fire temperature; hot spots glow red and yellow", page: "https://www.star.nesdis.noaa.gov/GOES/conus_band.php?sat=G19&band=FireTemperature&length=12" },
 ];
 const AQ_LINKS = [
   ["Fire and Smoke Map", "AirNow and the Forest Service, with sensor readings", "https://fire.airnow.gov/"],
@@ -873,10 +874,12 @@ const AQ_LINKS = [
   ["NOAA smoke analysis", "Hazard Mapping System smoke plumes", "https://www.ospo.noaa.gov/products/land/hms.html"],
   ["Copernicus air quality forecasts", "Global aerosol and smoke forecasts from CAMS", "https://atmosphere.copernicus.eu/charts/packages/cams/"],
 ];
-function renderAirQuality() {
+// The Action checks which of several candidate image addresses currently work (data/probes.json).
+async function renderAirQuality() {
   const stamp = Math.floor(Date.now() / 600000);
-  $("#aq-grid").innerHTML = AQ_MAPS.map((m) => `<figure class="sat">
-      <a href="${m.page}" target="_blank" rel="noopener"><img src="${m.img}?t=${stamp}" alt="${esc(m.name)}" loading="lazy"></a>
+  const ok = (await fetchJson("data/probes.json"))?.ok || {};
+  $("#aq-grid").innerHTML = AQ_MAPS.filter((m) => ok[m.key]).map((m) => `<figure class="sat">
+      <a href="${m.page}" target="_blank" rel="noopener"><img src="${ok[m.key]}?t=${stamp}" alt="${esc(m.name)}" loading="lazy"></a>
       <figcaption><b>${esc(m.name)}</b> ${esc(m.note)}</figcaption>
     </figure>`).join("");
   // Hide a map whose image doesn't load rather than show a broken picture.
