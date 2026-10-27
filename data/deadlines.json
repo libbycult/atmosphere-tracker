@@ -1,0 +1,8 @@
+{
+  "_help": "Fellowship and scholarship deadlines, checked by hand on each program's own page. Conference deadlines come from events.json and funding calls from grants.json automatically.",
+  "deadlines": [
+    {"name": "UC President's Postdoctoral Fellowship", "label": "Applications", "date": "2026-11-01", "kind": "fellowship", "url": "https://ppfp.ucop.edu/info/how-to-apply/"},
+    {"name": "AMS Graduate Fellowship (first-year grad students)", "label": "Applications", "date": "2027-01-15", "kind": "fellowship", "url": "https://apply.ametsoc.org/prog/ams_graduate_fellowship/"},
+    {"name": "NOAA Hollings Undergraduate Scholarship", "label": "Applications", "date": "2027-01-31", "kind": "fellowship", "url": "https://www.noaa.gov/office-education/hollings-scholarship"}
+  ]
+}

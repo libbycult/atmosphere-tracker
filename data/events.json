@@ -25,7 +25,20 @@
       "end": "2027-04-09",
       "city": "Vienna, Austria",
       "url": "https://www.egu27.eu/",
-      "deadlines": [],
+      "deadlines": [
+        {
+          "label": "Travel support applications",
+          "date": "2026-12-01"
+        },
+        {
+          "label": "Abstracts",
+          "date": "2027-01-12"
+        },
+        {
+          "label": "Early registration",
+          "date": "2027-03-08"
+        }
+      ],
       "kind": "major"
     },
     {

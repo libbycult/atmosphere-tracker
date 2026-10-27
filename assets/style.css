@@ -463,3 +463,8 @@ main { padding-top: 12px; }
 .net.focused .net-link.on { opacity: .9; stroke: var(--accent); }
 .netfig .tip span { display: block; }
 .netfig .tip { max-width: 240px; white-space: normal; }
+
+/* ---------- Theses filter, air quality links ---------- */
+.list-filter { width: 100%; max-width: 420px; margin: 0 0 8px; padding: 9px 12px; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+.list-filter:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.aq-links { margin: 14px 0 28px; }

@@ -87,7 +87,7 @@ const state = Object.assign(
 let saved = load("atmo.saved", {}); // OpenAlex id -> work, the viewer's reading list
 
 /* ---------- Tabs ---------- */
-const TABS = ["papers", "scientists", "map", "blogs", "legends", "sky", "charts", "explorer", "jobs", "funding", "events", "resources", "social"];
+const TABS = ["papers", "hot", "scientists", "map", "theses", "blogs", "legends", "sky", "charts", "explorer", "datasets", "jobs", "funding", "deadlines", "events", "talks", "resources", "social"];
 const loaded = {};
 function showTab() {
   const hash = location.hash.slice(1);
@@ -108,7 +108,7 @@ function showTab() {
   closeMenus();
   if (!loaded[tab]) {
     loaded[tab] = true;
-    ({ scientists: initScientists, sky: loadSky, charts: initCharts, jobs: loadJobs, funding: loadGrants, events: renderEvents, resources: renderResources, social: renderSocial, legends: renderLegends, explorer: initExplorer, blogs: renderBlogs, map: initMap })[tab]?.();
+    ({ scientists: initScientists, sky: loadSky, charts: initCharts, jobs: loadJobs, funding: loadGrants, events: renderEvents, resources: renderResources, social: renderSocial, legends: renderLegends, explorer: initExplorer, blogs: renderBlogs, map: initMap, hot: renderHot, theses: renderTheses, datasets: renderDatasets, deadlines: renderDeadlines, talks: renderTalks })[tab]?.();
   }
   updateAltimeter();
   countView(tab);
@@ -863,9 +863,31 @@ function renderSatellites() {
   }
 }
 
+const AQ_MAPS = [
+  { name: "US air quality now", note: "Current AQI from AirNow", img: "https://files.airnowtech.org/airnow/today/cur_aqi_usa.jpg", page: "https://www.airnow.gov/" },
+  { name: "Fires from space", note: "GOES-East fire temperature; hot spots glow red and yellow", img: "https://cdn.star.nesdis.noaa.gov/GOES19/ABI/CONUS/FireTemperature/1250x750.jpg", page: "https://www.star.nesdis.noaa.gov/GOES/conus_band.php?sat=G19&band=FireTemperature&length=12" },
+];
+const AQ_LINKS = [
+  ["Fire and Smoke Map", "AirNow and the Forest Service, with sensor readings", "https://fire.airnow.gov/"],
+  ["NASA FIRMS", "Active fires worldwide, updated within hours", "https://firms.modaps.eosdis.nasa.gov/map/"],
+  ["NOAA smoke analysis", "Hazard Mapping System smoke plumes", "https://www.ospo.noaa.gov/products/land/hms.html"],
+  ["Copernicus air quality forecasts", "Global aerosol and smoke forecasts from CAMS", "https://atmosphere.copernicus.eu/charts/packages/cams/"],
+];
+function renderAirQuality() {
+  const stamp = Math.floor(Date.now() / 600000);
+  $("#aq-grid").innerHTML = AQ_MAPS.map((m) => `<figure class="sat">
+      <a href="${m.page}" target="_blank" rel="noopener"><img src="${m.img}?t=${stamp}" alt="${esc(m.name)}" loading="lazy"></a>
+      <figcaption><b>${esc(m.name)}</b> ${esc(m.note)}</figcaption>
+    </figure>`).join("");
+  // Hide a map whose image doesn't load rather than show a broken picture.
+  for (const img of document.querySelectorAll("#aq-grid img")) img.addEventListener("error", () => { img.closest("figure").hidden = true; });
+  $("#aq-links").innerHTML = AQ_LINKS.map(([t, note, url]) => `<li><a href="${url}" target="_blank" rel="noopener">${esc(t)}</a><span>${esc(note)}</span></li>`).join("");
+}
+
 async function loadSky() {
   renderSatellites();
-  setInterval(renderSatellites, 600000);
+  renderAirQuality();
+  setInterval(() => { renderSatellites(); renderAirQuality(); }, 600000);
   const data = await fetchJson("data/storms.json");
   const storms = data?.storms || [];
   const when = data?.updated ? `Checked ${new Date(data.updated).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "";
@@ -1447,6 +1469,99 @@ function renderBlogs() {
       <p class="blog-who">${esc(b.who)}${b.where ? ` · ${esc(b.where)}` : ""}${b.star ? ` <span class="badge">Featured</span>` : ""}</p>
       <p>${esc(b.note)}</p>
     </li>`).join("");
+}
+
+/* ---------- This Week: the most-cited new papers, gathered by the Action ---------- */
+async function renderHot() {
+  const list = $("#hot-list");
+  list.innerHTML = `<li class="status">Loading…</li>`;
+  const data = await fetchJson("data/hot.json");
+  const works = data?.items || [];
+  works.forEach((w) => onScreen.set(w.id, w));
+  if (data?.since) $("#hot-intro").textContent = `Atmospheric science papers published since ${formatDate(data.since)} that are already being cited the most. Updated every 6 hours.`;
+  list.innerHTML = works.map(paperItem).join("") || `<li class="empty"><strong>Nothing here yet.</strong>The list fills in on the next update.</li>`;
+}
+
+/* ---------- Theses: recent PhD dissertations from OpenAlex ---------- */
+async function renderTheses() {
+  const list = $("#thesis-list");
+  list.innerHTML = `<li class="status">Loading…</li>`;
+  const data = await fetchJson("data/theses.json");
+  const items = data?.items || [];
+  const draw = () => {
+    const q = $("#thesis-filter").value.trim().toLowerCase();
+    const shown = items.filter((t) => !q || `${t.title} ${t.author} ${t.institution} ${t.abstract}`.toLowerCase().includes(q));
+    list.innerHTML = shown.map((t) => `<li class="blog">
+        <a href="${esc(t.url)}" target="_blank" rel="noopener"><h3>${esc(t.title)}</h3></a>
+        <p class="blog-who">${[t.author, t.institution, formatDate(t.date)].filter(Boolean).map(esc).join(" · ")}${t.free ? ` <span class="badge">Free to read</span>` : ""}</p>
+        ${t.abstract ? `<details class="abstract"><summary>Abstract</summary><p>${esc(t.abstract)}</p></details>` : ""}
+      </li>`).join("") || `<li class="empty"><strong>No theses found.</strong>${items.length ? "Try a different word." : "The list fills in on the next update."}</li>`;
+  };
+  $("#thesis-filter").oninput = draw;
+  draw();
+}
+
+/* ---------- New datasets from NASA Earthdata ---------- */
+async function renderDatasets() {
+  const list = $("#ds-list");
+  list.innerHTML = `<li class="status">Loading…</li>`;
+  const data = await fetchJson("data/datasets.json");
+  const items = data?.items || [];
+  if (data?.since) $("#ds-intro").textContent = `Atmosphere datasets added to NASA Earthdata since ${formatDate(data.since)}, newest first. Earthdata also carries many NOAA satellite products.`;
+  list.innerHTML = items.map((d) => `<li class="blog">
+      <a href="${esc(d.url)}" target="_blank" rel="noopener"><h3>${esc(d.title)}</h3></a>
+      <p class="blog-who">${[d.center, d.start ? `data from ${formatDate(d.start)}` : ""].filter(Boolean).map(esc).join(" · ")}</p>
+      ${d.summary ? `<p>${esc(d.summary)}</p>` : ""}
+    </li>`).join("") || `<li class="empty"><strong>Nothing here yet.</strong>The list fills in on the next update.</li>`;
+}
+
+/* ---------- Deadlines: conferences, fellowships and funding calls in one list ---------- */
+async function renderDeadlines() {
+  const [events, grants, fellows] = await Promise.all([fetchJson("data/events.json"), fetchJson("data/grants.json"), fetchJson("data/deadlines.json")]);
+  const todayIso = today();
+  const all = [
+    ...(events?.events || []).flatMap((ev) => (ev.deadlines || []).map((d) => ({ name: ev.name, label: d.label, date: d.date, url: ev.url, kind: "conference" }))),
+    ...(fellows?.deadlines || []),
+    ...(grants?.grants || []).filter((g) => g.closeDate).map((g) => ({ name: g.title, label: `${g.agency} funding call closes`, date: g.closeDate, url: g.url, kind: "funding" })),
+  ].filter((d) => d.date >= todayIso).sort((a, b) => a.date.localeCompare(b.date));
+  const kind = state.deadlineKind || "all";
+  const kinds = [["all", "All"], ["conference", "Conferences"], ["fellowship", "Fellowships"], ["funding", "Funding"]];
+  $("#deadline-kinds").innerHTML = kinds.map(([k, label]) =>
+    `<button type="button" class="chip" data-kind="${k}" aria-pressed="${k === kind}">${label}<span class="count">${k === "all" ? all.length : all.filter((d) => d.kind === k).length}</span></button>`).join("");
+  $("#deadline-kinds").onclick = (e) => { const b = e.target.closest("[data-kind]"); if (b) { state.deadlineKind = b.dataset.kind; renderDeadlines(); } };
+  const now = Date.now();
+  $("#deadline-list").innerHTML = all.filter((d) => kind === "all" || d.kind === kind).map((d) => {
+    const days = Math.ceil((new Date(d.date + "T23:59:59") - now) / 86400000);
+    return `<li class="event">
+      <div class="countdown"><b>${days <= 0 ? "Today" : days}</b><span>${days <= 0 ? "" : days === 1 ? "day" : "days"}</span></div>
+      <div>
+        <h3>${esc(d.name)}</h3>
+        <p>${esc(d.label)}: ${esc(formatDate(d.date))}</p>
+        <div class="links"><a href="${esc(d.url)}" target="_blank" rel="noopener">Details</a></div>
+      </div>
+    </li>`;
+  }).join("") || `<li class="empty"><strong>No upcoming deadlines.</strong></li>`;
+}
+
+/* ---------- Talks: ECMWF seminars (live) plus seminar series to follow ---------- */
+const SEMINAR_SERIES = [
+  { title: "ECMWF seminars", url: "https://events.ecmwf.int/category/9/", note: "Weather prediction, data assimilation and machine learning, from Europe's forecasting centre." },
+  { title: "NCAR MMM seminars", url: "https://www.mmm.ucar.edu/events/seminars", note: "Mesoscale and microscale meteorology on Thursdays; many talks are recorded." },
+  { title: "NOAA Physical Sciences Laboratory seminars", url: "https://psl.noaa.gov/seminars/", note: "Weather, water and climate research; some sessions are webinar only." },
+  { title: "NOAA Chemical Sciences Laboratory seminars", url: "https://csl.noaa.gov/seminars/", note: "Atmospheric chemistry, air quality and aerosols." },
+  { title: "WMO events and webinars", url: "https://wmo.int/events", note: "Webinars from the World Meteorological Organization, from AI to drought management." },
+];
+async function renderTalks() {
+  $("#series-list").innerHTML = SEMINAR_SERIES.map((s) => `<li class="blog">
+      <a href="${s.url}" target="_blank" rel="noopener"><h3>${esc(s.title)}</h3></a>
+      <p>${esc(s.note)}</p>
+    </li>`).join("");
+  const data = await fetchJson("data/seminars.json");
+  const items = (data?.items || []).filter((t) => (t.date || "") >= today());
+  $("#talk-list").innerHTML = items.map((t) => `<li class="blog">
+      <a href="${esc(t.url)}" target="_blank" rel="noopener"><h3>${esc(t.title)}</h3></a>
+      <p class="blog-who">${[formatDate(t.date), t.time && t.tz ? `${t.time} ${t.tz}` : t.time, t.speaker].filter(Boolean).map(esc).join(" · ")}</p>
+    </li>`).join("") || `<li class="empty">No ECMWF seminars are scheduled right now; check the series below.</li>`;
 }
 
 /* ---------- Altimeter: scroll position as height through the atmosphere ---------- */

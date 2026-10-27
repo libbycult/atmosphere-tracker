@@ -35,6 +35,9 @@ jobs:
       - name: Build the keyword network
         run: python scripts/fetch_network.py
         continue-on-error: true
+      - name: Collect hot papers, theses, new datasets and seminars
+        run: python scripts/fetch_more.py
+        continue-on-error: true
       - name: Collect CO2, funding calls and active storms
         run: python scripts/fetch_extras.py
         continue-on-error: true

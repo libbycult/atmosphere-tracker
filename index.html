@@ -34,8 +34,10 @@
       <button type="button" class="menu-btn" aria-expanded="false" aria-controls="menu-research"><span class="menu-name">Research</span><span class="menu-current"></span><svg class="caret" viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1.5 6 6.5 11 1.5"/></svg></button>
       <div class="menu-list" id="menu-research">
       <a class="tab" id="tab-papers" href="#papers" aria-controls="view-papers">Papers</a>
+      <a class="tab" id="tab-hot" href="#hot" aria-controls="view-hot">This Week</a>
       <a class="tab" id="tab-scientists" href="#scientists" aria-controls="view-scientists">Scientists</a>
       <a class="tab" id="tab-map" href="#map" aria-controls="view-map">Topic Map</a>
+      <a class="tab" id="tab-theses" href="#theses" aria-controls="view-theses">Theses</a>
       <a class="tab" id="tab-blogs" href="#blogs" aria-controls="view-blogs">Blogs</a>
       <a class="tab" id="tab-legends" href="#legends" aria-controls="view-legends">Legends</a>
     </div>
@@ -46,6 +48,7 @@
       <a class="tab" id="tab-sky" href="#sky" aria-controls="view-sky">Sky Now</a>
       <a class="tab" id="tab-charts" href="#charts" aria-controls="view-charts">Charts</a>
       <a class="tab" id="tab-explorer" href="#explorer" aria-controls="view-explorer">Explorer</a>
+      <a class="tab" id="tab-datasets" href="#datasets" aria-controls="view-datasets">New Datasets</a>
     </div>
     </div>
     <div class="menu" data-menu="career">
@@ -53,7 +56,9 @@
       <div class="menu-list" id="menu-career">
       <a class="tab" id="tab-jobs" href="#jobs" aria-controls="view-jobs">Jobs</a>
       <a class="tab" id="tab-funding" href="#funding" aria-controls="view-funding">Funding</a>
+      <a class="tab" id="tab-deadlines" href="#deadlines" aria-controls="view-deadlines">Deadlines</a>
       <a class="tab" id="tab-events" href="#events" aria-controls="view-events">Conferences</a>
+      <a class="tab" id="tab-talks" href="#talks" aria-controls="view-talks">Talks</a>
       <a class="tab" id="tab-resources" href="#resources" aria-controls="view-resources">Data &amp; Programs</a>
       <a class="tab" id="tab-social" href="#social" aria-controls="view-social">Social</a>
     </div>
@@ -240,6 +245,10 @@
     <ol class="results" id="storm-list"></ol>
     <p class="intro small">Atlantic and eastern/central Pacific storms from the <a href="https://www.nhc.noaa.gov" target="_blank" rel="noopener">National Hurricane Center</a>, checked every 6 hours. For the western Pacific and Indian Ocean, see the <a href="https://www.metoc.navy.mil/jtwc/jtwc.html" target="_blank" rel="noopener">Joint Typhoon Warning Center</a>.</p>
 
+    <h2 class="section-title">Air quality and wildfire smoke</h2>
+    <div class="sat-grid" id="aq-grid"></div>
+    <ul class="linkgrid aq-links" id="aq-links"></ul>
+
     <h2 class="section-title">Latest satellite images</h2>
     <div class="sat-grid" id="sat-grid"></div>
     <p class="intro small">GeoColor imagery from NOAA's GOES satellites via <a href="https://www.star.nesdis.noaa.gov/GOES/" target="_blank" rel="noopener">NOAA STAR</a>. Images refresh every 10 minutes while this page is open.</p>
@@ -321,6 +330,41 @@
     <ul class="reslist" id="program-list"></ul>
   </section>
 
+  <!-- THIS WEEK -->
+  <section id="view-hot" class="view" role="tabpanel" aria-labelledby="tab-hot" hidden>
+    <p class="intro" id="hot-intro">Atmospheric science papers from the last two months that are already being cited the most.</p>
+    <ol class="results" id="hot-list"></ol>
+  </section>
+
+  <!-- THESES -->
+  <section id="view-theses" class="view" role="tabpanel" aria-labelledby="tab-theses" hidden>
+    <p class="intro">The newest atmospheric science PhD theses, from university repositories indexed by OpenAlex.</p>
+    <input type="search" class="list-filter" id="thesis-filter" placeholder="Filter by word, author or university" aria-label="Filter theses">
+    <ul class="blogs" id="thesis-list"></ul>
+  </section>
+
+  <!-- NEW DATASETS -->
+  <section id="view-datasets" class="view" role="tabpanel" aria-labelledby="tab-datasets" hidden>
+    <p class="intro" id="ds-intro">Atmosphere datasets recently added to NASA Earthdata, which also carries many NOAA satellite products.</p>
+    <ul class="blogs" id="ds-list"></ul>
+  </section>
+
+  <!-- DEADLINES -->
+  <section id="view-deadlines" class="view" role="tabpanel" aria-labelledby="tab-deadlines" hidden>
+    <p class="intro">Every upcoming deadline in one list: conference abstracts, fellowships and federal funding calls. Always confirm on the program's own page.</p>
+    <div class="chips" id="deadline-kinds" aria-label="Deadline type"></div>
+    <ol class="events" id="deadline-list"></ol>
+  </section>
+
+  <!-- TALKS -->
+  <section id="view-talks" class="view" role="tabpanel" aria-labelledby="tab-talks" hidden>
+    <p class="intro">Seminars and webinars in the field. Many are streamed or recorded; each listing says how to join.</p>
+    <h2 class="section-title">Coming up at ECMWF</h2>
+    <ul class="blogs" id="talk-list"></ul>
+    <h2 class="section-title">Seminar series worth following</h2>
+    <ul class="blogs" id="series-list"></ul>
+  </section>
+
   <!-- LEGENDS -->
   <section id="view-legends" class="view" role="tabpanel" aria-labelledby="tab-legends" hidden>
     <p class="intro">The people who taught us how the sky works. Quotes are sourced where we can; "attributed" means it's widely credited to them but the original is hard to pin down.</p>
@@ -329,7 +373,7 @@
 </main>
 
 <footer class="wrap foot">
-  <p>Papers come live from <a href="https://openalex.org" target="_blank" rel="noopener">OpenAlex</a>, an open index of scholarly work. "Free to read" links are legal open-access copies; subscription papers link to the publisher, where your library login gives access. Jobs come daily from the AGU and Science Careers job boards, funding from <a href="https://www.grants.gov" target="_blank" rel="noopener">Grants.gov</a>, storms from the National Hurricane Center, climate records from NOAA, NASA GISS, NSIDC, the Met Office Hadley Centre, Climate Reanalyzer, SILSO, the US Drought Monitor and the Rutgers Global Snow Lab, satellite images from NOAA, and CO₂ from <a href="https://gml.noaa.gov/ccgg/trends/" target="_blank" rel="noopener">NOAA's Global Monitoring Laboratory</a>.</p>
+  <p>Papers come live from <a href="https://openalex.org" target="_blank" rel="noopener">OpenAlex</a>, an open index of scholarly work. "Free to read" links are legal open-access copies; subscription papers link to the publisher, where your library login gives access. Jobs come daily from the AGU and Science Careers job boards, funding from <a href="https://www.grants.gov" target="_blank" rel="noopener">Grants.gov</a>, storms from the National Hurricane Center, climate records from NOAA, NASA GISS, NSIDC, the Met Office Hadley Centre, Climate Reanalyzer, SILSO, the US Drought Monitor and the Rutgers Global Snow Lab, satellite images from NOAA, air quality maps from AirNow, new datasets from NASA Earthdata, seminars from ECMWF, and CO₂ from <a href="https://gml.noaa.gov/ccgg/trends/" target="_blank" rel="noopener">NOAA's Global Monitoring Laboratory</a>.</p>
 </footer>
 
 <script data-goatcounter="https://lbbyc.goatcounter.com/count" data-goatcounter-settings='{"no_onload": true}' async src="https://gc.zgo.at/count.js"></script>
