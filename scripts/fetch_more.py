@@ -65,15 +65,21 @@ def hot():
 def theses():
     """The newest atmospheric science PhD dissertations OpenAlex knows about."""
     body = get(OPENALEX, {
-        "filter": f"primary_topic.subfield.id:1902,type:dissertation,to_publication_date:{date.today()}",
-        "sort": "publication_date:desc", "per_page": "60",
+        "filter": f"primary_topic.subfield.id:1902,type:dissertation,language:en,to_publication_date:{date.today()}",
+        "sort": "publication_date:desc", "per_page": "100",
         "select": "id,doi,title,publication_date,authorships,primary_location,open_access,abstract_inverted_index",
     })
-    items = []
+    items, seen = [], set()
     for w in body.get("results", []):
+        loc = w.get("primary_location") or {}
+        source = ((loc.get("source") or {}).get("display_name") or "").lower()
+        key = re.sub(r"\W+", " ", (w.get("title") or "").lower()).strip()
+        # Zenodo takes self-published uploads that aren't theses; repositories also often list one thesis twice.
+        if not key or key in seen or "zenodo" in source:
+            continue
+        seen.add(key)
         a = (w.get("authorships") or [{}])[0]
         inst = (a.get("institutions") or [{}])[0].get("display_name") if a.get("institutions") else None
-        loc = w.get("primary_location") or {}
         items.append({
             "title": w.get("title") or "Untitled",
             "author": (a.get("author") or {}).get("display_name"),
@@ -83,6 +89,7 @@ def theses():
             "free": bool((w.get("open_access") or {}).get("is_oa")),
             "abstract": abstract(w.get("abstract_inverted_index")),
         })
+    items = items[:60]
     write("theses.json", {"updated": now(), "total": body.get("meta", {}).get("count"), "items": items})
     print(f"Wrote {len(items)} theses")
 
