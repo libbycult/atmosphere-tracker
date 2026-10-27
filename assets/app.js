@@ -864,7 +864,6 @@ function renderSatellites() {
 }
 
 const AQ_MAPS = [
-  { key: "aqi", name: "US air quality now", note: "Current AQI from AirNow", page: "https://www.airnow.gov/" },
   { key: "smoke", name: "Smoke plumes", note: "NOAA Hazard Mapping System analysis", page: "https://www.ospo.noaa.gov/products/land/hms.html" },
   { key: "fire", name: "Fires from space", note: "GOES-East fire temperature; hot spots glow red and yellow", page: "https://www.star.nesdis.noaa.gov/GOES/conus_band.php?sat=G19&band=FireTemperature&length=12" },
 ];
@@ -1564,7 +1563,7 @@ async function renderTalks() {
   $("#talk-list").innerHTML = items.map((t) => `<li class="blog">
       <a href="${esc(t.url)}" target="_blank" rel="noopener"><h3>${esc(t.title)}</h3></a>
       <p class="blog-who">${[formatDate(t.date), t.time && t.tz ? `${t.time} ${t.tz}` : t.time, t.speaker].filter(Boolean).map(esc).join(" · ")}</p>
-    </li>`).join("") || `<li class="empty">No ECMWF seminars are scheduled right now; check the series below.</li>`;
+    </li>`).join("") || `<li class="empty">Nothing scheduled at ECMWF right now; check the series below.</li>`;
 }
 
 /* ---------- Altimeter: scroll position as height through the atmosphere ---------- */

@@ -18,6 +18,7 @@ USER_AGENT = "Atmosphere Scholar data collector (+https://github.com/libbycult/a
 OPENALEX = "https://api.openalex.org/works"
 CMR = "https://cmr.earthdata.nasa.gov/search/collections.json"
 INDICO = "https://events.ecmwf.int/export/categ/{cat}.json"
+SKIP_EVENT = re.compile(r"training course|internal", re.I)  # courses and staff-only events aren't talks
 ECMWF_CATEGORIES = {0: "ECMWF"}  # 0 is the whole calendar; each event names its own category
 # Same fields the Papers tab asks for, so the site can draw these with the same paper cards.
 WORK_FIELDS = ("id,doi,title,publication_date,authorships,primary_location,open_access,abstract_inverted_index,"
@@ -25,13 +26,6 @@ WORK_FIELDS = ("id,doi,title,publication_date,authorships,primary_location,open_
                "institutions_distinct_count,is_retracted,funders")
 # Outside images Sky Now could show; the site uses the first one in each group that answers.
 PROBES = {
-    "aqi": [
-        "https://files.airnowtech.org/airnow/today/cur_aqi_usa.jpg",
-        "https://files.airnowtech.org/airnow/today/aqi_usa.jpg",
-        "https://files.airnowtech.org/airnow/today/cur_aqi_usa_pm25.jpg",
-        "https://files.airnowtech.org/airnow/today/anim_aqi_usa.gif",
-        "https://files.airnowtech.org/airnow/today/cur_aqi_conus.jpg",
-    ],
     "smoke": [
         "https://www.ospo.noaa.gov/data/land/fire/smoke.jpg",
         "https://www.ospo.noaa.gov/data/land/fire/currenthms.jpg",
@@ -134,11 +128,13 @@ def datasets():
 
 
 def seminars():
-    """Upcoming ECMWF seminars from their public Indico calendar."""
+    """Upcoming ECMWF seminars, workshops and panels from their public Indico calendar."""
     items = []
     for cat, kind in ECMWF_CATEGORIES.items():
         body = get(INDICO.format(cat=cat), {"from": "today", "to": "+120d", "order": "start"})
         for ev in body.get("results", []):
+            if SKIP_EVENT.search(ev.get("title") or ""):
+                continue
             start = ev.get("startDate") or {}
             items.append({
                 "title": (ev.get("title") or "").strip(),
