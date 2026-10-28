@@ -56,6 +56,7 @@
       <div class="menu-list" id="menu-career">
       <a class="tab" id="tab-jobs" href="#jobs" aria-controls="view-jobs">Jobs</a>
       <a class="tab" id="tab-funding" href="#funding" aria-controls="view-funding">Funding</a>
+      <a class="tab" id="tab-pay" href="#pay" aria-controls="view-pay">Pay</a>
       <a class="tab" id="tab-deadlines" href="#deadlines" aria-controls="view-deadlines">Deadlines</a>
       <a class="tab" id="tab-events" href="#events" aria-controls="view-events">Conferences</a>
       <a class="tab" id="tab-talks" href="#talks" aria-controls="view-talks">Talks</a>
@@ -347,6 +348,23 @@
   <section id="view-datasets" class="view" role="tabpanel" aria-labelledby="tab-datasets" hidden>
     <p class="intro" id="ds-intro">Atmosphere datasets recently added to NASA Earthdata, which also carries many NOAA satellite products.</p>
     <ul class="blogs" id="ds-list"></ul>
+  </section>
+
+  <!-- PAY -->
+  <section id="view-pay" class="view" role="tabpanel" aria-labelledby="tab-pay" hidden>
+    <p class="intro">What jobs in the field pay, from salaries posted in our job listings and from official government figures. Hover or tap a bar for details.</p>
+    <figure class="chart payfig" id="pay-posted">
+      <div class="chart-head"><div><h2 class="chart-title">Posted salaries, by type of job</h2><p class="chart-sub" id="pay-posted-sub"></p></div></div>
+      <div class="series-key" id="pay-key"></div>
+      <div class="chart-body" id="pay-posted-body"><p class="status">Loading…</p></div>
+      <div id="pay-sector"></div>
+      <details class="chart-table"><summary>Show as a table</summary><div class="table-scroll" id="pay-table"></div></details>
+    </figure>
+    <figure class="chart payfig" id="pay-official">
+      <div class="chart-head"><div><h2 class="chart-title">Official pay figures</h2><p class="chart-sub">US Bureau of Labor Statistics wages for atmospheric scientists (May 2025), federal General Schedule base pay (2026, before locality pay, which adds roughly 17–45%), and the NIH postdoc stipend scale (2026).</p></div></div>
+      <div class="chart-body" id="pay-official-body"></div>
+      <p class="chart-sub">Sources: <a href="https://www.bls.gov/ooh/life-physical-and-social-science/atmospheric-scientists-including-meteorologists.htm" target="_blank" rel="noopener">BLS Occupational Outlook</a>, <a href="https://www.opm.gov/policy-data-oversight/pay-leave/salaries-wages/salary-tables/26Tables/html/GS.aspx" target="_blank" rel="noopener">OPM 2026 GS table</a>, <a href="https://grants.nih.gov/grants/guide/notice-files/NOT-OD-26-044.html" target="_blank" rel="noopener">NIH NOT-OD-26-044</a>.</p>
+    </figure>
   </section>
 
   <!-- DEADLINES -->

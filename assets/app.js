@@ -87,7 +87,7 @@ const state = Object.assign(
 let saved = load("atmo.saved", {}); // OpenAlex id -> work, the viewer's reading list
 
 /* ---------- Tabs ---------- */
-const TABS = ["papers", "hot", "scientists", "map", "theses", "blogs", "legends", "sky", "charts", "explorer", "datasets", "jobs", "funding", "deadlines", "events", "talks", "resources", "social"];
+const TABS = ["papers", "hot", "scientists", "map", "theses", "blogs", "legends", "sky", "charts", "explorer", "datasets", "jobs", "funding", "pay", "deadlines", "events", "talks", "resources", "social"];
 const loaded = {};
 function showTab() {
   const hash = location.hash.slice(1);
@@ -108,7 +108,7 @@ function showTab() {
   closeMenus();
   if (!loaded[tab]) {
     loaded[tab] = true;
-    ({ scientists: initScientists, sky: loadSky, charts: initCharts, jobs: loadJobs, funding: loadGrants, events: renderEvents, resources: renderResources, social: renderSocial, legends: renderLegends, explorer: initExplorer, blogs: renderBlogs, map: initMap, hot: renderHot, theses: renderTheses, datasets: renderDatasets, deadlines: renderDeadlines, talks: renderTalks })[tab]?.();
+    ({ scientists: initScientists, sky: loadSky, charts: initCharts, jobs: loadJobs, funding: loadGrants, events: renderEvents, resources: renderResources, social: renderSocial, legends: renderLegends, explorer: initExplorer, blogs: renderBlogs, map: initMap, hot: renderHot, theses: renderTheses, datasets: renderDatasets, deadlines: renderDeadlines, talks: renderTalks, pay: renderPay })[tab]?.();
   }
   updateAltimeter();
   countView(tab);
@@ -1543,6 +1543,97 @@ async function renderDeadlines() {
       </div>
     </li>`;
   }).join("") || `<li class="empty"><strong>No upcoming deadlines.</strong></li>`;
+}
+
+/* ---------- Pay: posted salaries (collected by the Action) and official figures ---------- */
+const PAY_SECTORS = [["academia", "Academia"], ["government", "Government"], ["industry", "Industry"]];
+const PAY_LEVELS = [["postdoc", "Postdoc"], ["faculty", "Faculty"], ["scientist", "Scientist or engineer"], ["meteorologist", "Meteorologist"], ["student", "Student or intern"], ["other", "Other"]];
+const OFFICIAL_PAY = [
+  { group: "BLS median wage, May 2025", rows: [
+    { label: "All atmospheric scientists", min: 53060, max: 161890, mid: 99070, note: "Middle 80% of earners; dot is the median" },
+    { label: "Research and development firms", mid: 127960 },
+    { label: "Federal government", mid: 122700 },
+    { label: "State universities", mid: 103970 },
+    { label: "Broadcasting and publishing", mid: 80060 },
+    { label: "Other technical services", mid: 78610 },
+  ] },
+  { group: "Federal GS base pay, 2026 (step 1 to 10)", rows: [
+    { label: "GS-9", min: 52727, max: 68549 }, { label: "GS-11", min: 63795, max: 82938 }, { label: "GS-12", min: 76463, max: 99404 },
+    { label: "GS-13", min: 90925, max: 118204 }, { label: "GS-14", min: 107446, max: 139684 }, { label: "GS-15", min: 126384, max: 164301 },
+  ] },
+  { group: "NIH postdoc stipend, 2026", rows: [{ label: "Year 0 to year 7+", min: 63480, max: 77076 }] },
+];
+const money = (v) => `$${Math.round(v / 1000)}k`;
+const median = (xs) => { const a = xs.slice().sort((x, y) => x - y), m = a.length >> 1; return a.length ? (a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2) : null; };
+
+// One horizontal row per item: a bar from min to max (or a dot), grouped under headings, on a shared dollar axis.
+function payChart(body, groups, xMax) {
+  const W = Math.max(300, body.clientWidth), phone = W < 560;
+  const labelW = phone ? 0 : 190, padR = 16, rowH = phone ? 30 : 20, headH = 30, top = 4;
+  let y = top;
+  const placed = groups.map((g) => { const gy = y; y += headH; const rows = g.rows.map((r) => { const ry = y + (phone ? 14 : 0); y += rowH; return { ...r, y: ry }; }); return { ...g, y: gy, rows }; });
+  const H = y + 26, x0 = labelW, x1 = W - padR, sx = (v) => x0 + (v / xMax) * (x1 - x0);
+  const step = xMax > 200000 ? 50000 : 25000;
+  let grid = "";
+  for (let v = 0; v <= xMax; v += step) grid += `<line class="grid" x1="${sx(v)}" x2="${sx(v)}" y1="${top}" y2="${H - 22}"/><text class="tick" x="${sx(v)}" y="${H - 6}" text-anchor="middle">${v ? money(v) : "$0"}</text>`;
+  let marks = "", hits = "", i = 0;
+  const tips = [];
+  for (const g of placed) {
+    marks += `<text class="pay-group" x="0" y="${g.y + 20}">${esc(g.group)}</text>`;
+    for (const r of g.rows) {
+      const cy = r.y + rowH / 2, color = r.color || "var(--accent)";
+      if (phone) marks += `<text class="pay-label" x="0" y="${r.y + 4}">${esc(r.label)}</text>`;
+      else marks += `<text class="pay-label" x="${labelW - 10}" y="${cy + 4}" text-anchor="end">${esc(r.label.length > 30 ? r.label.slice(0, 29) + "…" : r.label)}</text>`;
+      if (r.min != null && r.max > r.min) marks += `<rect class="pay-bar" x="${sx(r.min)}" y="${cy - 4}" width="${Math.max(3, sx(r.max) - sx(r.min))}" height="8" rx="4" style="fill:${color}"/>`;
+      const dot = r.mid ?? (r.min === r.max ? r.min : null);
+      if (dot != null) marks += `<circle class="pay-dot" cx="${sx(dot)}" cy="${cy}" r="5" style="fill:${color}"/>`;
+      hits += `<rect class="hit" data-i="${i}" x="0" y="${r.y}" width="${W}" height="${rowH}"/>`;
+      tips.push({ r, x: sx(r.mid ?? (r.min + r.max) / 2), y: r.y });
+      i++;
+    }
+  }
+  body.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Pay chart">${hits}${grid}<g class="pay-marks">${marks}</g></svg><div class="tip" hidden></div>`;
+  const svg = body.querySelector("svg"), tip = body.querySelector(".tip");
+  svg.addEventListener("pointermove", (e) => {
+    const t = tips[e.target.dataset?.i];
+    if (!t) { tip.hidden = true; return; }
+    const r = t.r, range = r.min != null && r.max > r.min ? `${money(r.min)} to ${money(r.max)}` : money(r.mid ?? r.min);
+    tip.innerHTML = `<b>${esc(r.tipTitle || r.label)}</b><span>${range}${r.mid != null && r.min != null ? `, median ${money(r.mid)}` : ""}</span>${r.note ? `<span>${esc(r.note)}</span>` : ""}`;
+    tip.hidden = false;
+    const box = svg.getBoundingClientRect();
+    tip.style.left = `${Math.min(Math.max((t.x / W) * box.width, 110), box.width - 110)}px`;
+    tip.style.top = `${(t.y / H) * box.height}px`;
+  });
+  svg.addEventListener("pointerleave", () => { tip.hidden = true; });
+}
+
+async function renderPay() {
+  const data = await fetchJson("data/pay.json");
+  const items = (data?.items || []).filter((p) => p.min);
+  const color = (s) => `var(--sec-${s})`;
+  $("#pay-key").innerHTML = PAY_SECTORS.map(([k, label]) => `<span><i class="sw" style="--c:${color(k)}"></i>${label}</span>`).join("");
+  const groups = PAY_LEVELS.map(([k, label]) => {
+    const rows = items.filter((p) => (p.level || "other") === k).sort((a, b) => a.min - b.min).map((p) => ({
+      label: p.employer || p.title, tipTitle: `${p.title}${p.employer ? `, ${p.employer}` : ""}`, min: p.min, max: p.max, color: color(p.sector),
+      note: `${p.text}${p.nine_month ? " (9-month salary)" : ""}`,
+    }));
+    const mids = rows.map((r) => (r.min + r.max) / 2);
+    return { group: rows.length ? `${label} · median ${money(median(mids))} · ${rows.length} listing${rows.length === 1 ? "" : "s"}` : "", rows };
+  }).filter((g) => g.rows.length);
+  const xMax = Math.ceil(Math.max(170000, ...items.map((p) => p.max)) / 50000) * 50000;
+  const since = items.length ? items.map((p) => p.posted || "").filter(Boolean).sort()[0] : null;
+  $("#pay-posted-sub").textContent = items.length
+    ? `${items.length} listings with posted pay${since ? ` since ${formatDate(since.slice(0, 10))}` : ""}. US dollar listings only; hourly pay is counted as 2,080 hours a year and monthly pay as 12 months. The record grows as new jobs are posted.`
+    : "No listings with posted pay yet; this fills in as jobs are posted.";
+  if (groups.length) payChart($("#pay-posted-body"), groups, xMax);
+  else $("#pay-posted-body").innerHTML = "";
+  // Median posted pay by sector, as a sentence, for the sector comparison.
+  const bySector = PAY_SECTORS.map(([k, label]) => { const mids = items.filter((p) => p.sector === k).map((p) => (p.min + p.max) / 2); return mids.length ? `${label} ${money(median(mids))} (${mids.length})` : null; }).filter(Boolean);
+  $("#pay-sector").innerHTML = bySector.length ? `<p class="chart-sub">Median posted pay by sector: ${bySector.join(" · ")}.</p>` : "";
+  $("#pay-table").innerHTML = items.length ? `<table><thead><tr><th>Job</th><th>Employer</th><th>Type</th><th>Sector</th><th>Posted pay</th></tr></thead><tbody>${items.map((p) =>
+    `<tr><td><a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.title)}</a></td><td>${esc(p.employer || "")}</td><td>${esc((PAY_LEVELS.find(([k]) => k === p.level) || [, "Other"])[1])}</td><td>${esc(p.sector)}</td><td>${esc(p.text)}</td></tr>`).join("")}</tbody></table>` : "";
+  payChart($("#pay-official-body"), OFFICIAL_PAY, xMax);
+  addEventListener("resize", () => { if (!$("#view-pay").hidden) renderPay(); }, { once: true });
 }
 
 /* ---------- Talks: ECMWF seminars (live) plus seminar series to follow ---------- */
