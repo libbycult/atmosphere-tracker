@@ -80,7 +80,7 @@ def sector(employer, title):
         return "academia"
     if GOVERNMENT.search(employer):
         return "government"
-    if ACADEMIA.search(title) or re.search(r"\b(postdoc|professor|faculty|lecturer|PhD)\b", title, re.I):
+    if ACADEMIA.search(title) or re.search(r"\b(postdoc\w*|professor|faculty|lecturer|PhD|research fellow)\b", title, re.I):
         return "academia"
     return "industry"
 
@@ -117,7 +117,7 @@ def salary(text):
 
 LEVELS = [
     ("student", re.compile(r"\b(graduate student|phd student|phd position|studentship|intern(ship)?)\b", re.I)),
-    ("postdoc", re.compile(r"\b(post-?doc\w*|postdoctoral)\b", re.I)),
+    ("postdoc", re.compile(r"\b(post-?doc\w*|postdoctoral|research fellow)\b", re.I)),
     ("faculty", re.compile(r"\b(professor|lecturer|faculty|instructor|chair)\b", re.I)),
     ("meteorologist", re.compile(r"\b(meteorologist|forecaster)\b", re.I)),
     ("scientist", re.compile(r"\b(scientist|researcher|research associate|engineer|specialist|analyst|modeler)\b", re.I)),
